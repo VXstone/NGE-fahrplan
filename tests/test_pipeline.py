@@ -30,6 +30,18 @@ class Pipeline(unittest.TestCase):
         self.assertNotIn(8512345, self.db.by_num)                      # Bus ohne Abk.
         self.assertTrue(len(self.db.within(46.99, 7.0, 15)) >= 3)
 
+    def test_topo_betriebspunkte(self):
+        topo = self.tmp / "betriebspunkte.json"
+        topo.write_text(json.dumps([
+            {"name": "Olten Ost (Abzw)", "abk": "OLO", "typ": "Abzweigstelle", "lat": 47.3586,
+             "lon": 7.9256, "didok": 244, "linie": 450, "km": 39.1},
+            {"name": "Neuchâtel", "abk": "NE", "lat": 1.0, "lon": 1.0, "didok": 4221}]))
+        out = self.tmp / "st_topo.csv"
+        didok.build_db([self.csv], None, out, topo=[topo])
+        db = didok.StationDB(out)
+        self.assertEqual(db.resolve("OLO").number, 8500244)          # neu aus topo-daten
+        self.assertAlmostEqual(db.resolve("NE").lat, 46.99677, 4)     # atlas hat Vorrang
+
     def test_time_parse(self):
         self.assertEqual(hrdf.parse_time(" 00813"), 8 * 60 + 13)
         self.assertEqual(hrdf.parse_time("-02405"), 24 * 60 + 5)

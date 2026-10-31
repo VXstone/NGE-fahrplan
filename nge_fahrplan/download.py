@@ -29,6 +29,9 @@ PREFERRED = {
     "hrdf": ["oev_sammlung_ch_hrdf"],
 }
 
+# Betriebspunkte aus dem eigenen Repo topo-daten (GitHub-Release, monatlich neu)
+TOPO_URL = "https://github.com/VXstone/topo-daten/releases/download/vorbereitung/betriebspunkte.json"
+
 UA = {"User-Agent": "nge-fahrplan/0.1 (+https://github.com/OpenRailAssociation/netzgrafik-editor-frontend)"}
 
 
@@ -87,6 +90,8 @@ def download(url: str, dest: Path, force: bool = False) -> Path:
 
 def fetch(kind: str, data_dir: Path, year: int | None = None, url: str | None = None,
           force: bool = False) -> Path:
+    if kind == "topo":
+        return download(url or TOPO_URL, data_dir / "betriebspunkte.json", force=True)
     if url is None:
         info = find_resource(kind, year)
         url, name = info["url"], info["name"]

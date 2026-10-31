@@ -42,9 +42,12 @@ def _stations(a, db: didok.StationDB) -> list[didok.Station]:
 
 
 def cmd_fetch(a):
-    kinds = [k for k in ("didok", "hrdf") if getattr(a, k)] or ["didok", "hrdf"]
+    kinds = [k for k in ("didok", "hrdf", "topo") if getattr(a, k)] or ["topo", "didok", "hrdf"]
     for k in kinds:
-        download.fetch(k, Path(a.data), year=a.year, url=a.url, force=a.force)
+        try:
+            download.fetch(k, Path(a.data), year=a.year, url=a.url, force=a.force)
+        except Exception as e:  # eine fehlende Quelle soll die anderen nicht blockieren
+            print(f"{k}: FEHLER {type(e).__name__}: {e}", file=sys.stderr)
 
 
 def cmd_stations(a):
@@ -52,9 +55,11 @@ def cmd_stations(a):
     if not sp and (Path(a.data) / "didok.csv").exists():
         sp = [Path(a.data) / "didok.csv"]
     hz = Path(a.hrdf) if a.hrdf else (HRDF_ZIP if HRDF_ZIP.exists() else None)
-    if not sp and not hz:
-        raise SystemExit("weder DIDOK-CSV noch HRDF-ZIP gefunden – zuerst 'fetch'")
-    didok.build_db(sp, hz, Path(a.out), all_modes=a.all_modes)
+    topo = [Path(a.topo)] if a.topo else ([Path(a.data) / "betriebspunkte.json"]
+                                          if (Path(a.data) / "betriebspunkte.json").exists() else [])
+    if not sp and not hz and not topo:
+        raise SystemExit("weder DIDOK-CSV, topo-daten noch HRDF-ZIP gefunden – zuerst 'fetch'")
+    didok.build_db(sp, hz, Path(a.out), all_modes=a.all_modes, topo=topo)
 
 
 def cmd_find(a):
@@ -145,6 +150,7 @@ def main(argv=None):
 
     p = sub("fetch", cmd_fetch, "DIDOK/atlas und HRDF von opentransportdata.swiss laden")
     p.add_argument("--didok", action="store_true"); p.add_argument("--hrdf", action="store_true")
+    p.add_argument("--topo", action="store_true", help="betriebspunkte.json aus VXstone/topo-daten")
     p.add_argument("--year", type=int, default=dt.date.today().year + (dt.date.today().month == 12))
     p.add_argument("--url", help="direkte Download-URL statt CKAN-Suche")
     p.add_argument("--data", default=str(DATA)); p.add_argument("--force", action="store_true")
@@ -152,6 +158,7 @@ def main(argv=None):
     p = sub("stations", cmd_stations, "Stationsdatenbank (Kuerzel, Name, Koordinaten) bauen")
     p.add_argument("--didok", nargs="*", help="DIDOK/atlas/haltekante-CSV(s)")
     p.add_argument("--hrdf", help="HRDF-ZIP (ergaenzt fehlende Stationen/Koordinaten)")
+    p.add_argument("--topo", help="betriebspunkte.json aus topo-daten (Standard: data/betriebspunkte.json)")
     p.add_argument("--all-modes", action="store_true", help="auch Bus/Tram/Schiff")
     p.add_argument("--data", default=str(DATA)); p.add_argument("--out", default=str(DB))
 

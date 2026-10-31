@@ -61,10 +61,14 @@ Optional installieren (`pip install -e .`), dann heisst der Befehl `nge-fahrplan
 |---|---|---|
 | Dienststellen (DIDOK → atlas v2): Nummer, Kürzel, Name, Koordinaten | opendata.swiss `service-point-v2` (`actual-date-swiss-service-point.csv`) | `fetch --didok` |
 | Fahrplan | opendata.swiss `fahrplan-JJJJ-hrdf-format-5-4` (HRDF 5.40, 2× pro Woche neu) | `fetch --hrdf --year 2026` |
+| Betriebspunkte inkl. Abzweigstellen («Olten Ost (Abzw)») | Release `vorbereitung` von [VXstone/topo-daten](https://github.com/VXstone/topo-daten) (`betriebspunkte.json`, dort monatlich aus data.sbb.ch «Linie mit Betriebspunkten» + OSM gebaut) | `fetch --topo` |
 | Alternativ | `haltestelle-haltekante.csv` / alter DIDOK-Export von data.sbb.ch (manuell herunterladen, data.sbb.ch sperrt Skripte) | `stations --didok datei.csv` |
 
 `fetch` sucht die jeweils neueste Ressource über die CKAN-API von opendata.swiss;
-mit `--url` geht auch ein direkter Link. Stationen ohne Eintrag in der
+mit `--url` geht auch ein direkter Link. `stations` nimmt alle vorhandenen
+Quellen zusammen: atlas zuerst, topo-daten ergänzt Abzweigstellen und
+Betriebspunkte ohne Publikumsverkehr (topo-daten allein reicht nicht: es deckt
+nur SBB-Linien ab, z.B. fehlt Gampelen an der BLS-Strecke). Stationen ohne Eintrag in der
 DIDOK-Datei (v.a. Ausland) werden aus HRDF `BAHNHOF`/`BFKOORD_WGS` ergänzt.
 
 ## Was automatisch passiert (Cookbook-Regeln)

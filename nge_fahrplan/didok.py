@@ -6,6 +6,8 @@ weiteren Schritte nutzen. Unterstuetzte Eingaben:
 * atlas v2 ``*-swiss-service-point.csv`` (opentransportdata.swiss / opendata.swiss)
 * alter DIDOK-Export ``dienststellen-gemass-opentransportdataswiss.csv`` (data.sbb.ch)
 * ``haltestelle-haltekante.csv`` (data.sbb.ch)
+* ``betriebspunkte.json`` aus VXstone/topo-daten (Release ``vorbereitung``):
+  SBB-Betriebspunkte inkl. Abzweigstellen, schon aus data.sbb.ch aufbereitet
 * HRDF ``BAHNHOF`` + ``BFKOORD_WGS`` (aus dem Fahrplan-ZIP; fuellt Luecken)
 
 Die Spaltennamen der offenen Datensaetze haben sich in der Vergangenheit
@@ -17,6 +19,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import math
 import sys
 import zipfile
@@ -175,12 +178,35 @@ def read_hrdf_stations(hrdf_zip: Path) -> list[Station]:
     return out
 
 
+def read_topo_betriebspunkte(path: Path) -> list[Station]:
+    """``betriebspunkte.json`` aus dem Release ``vorbereitung`` von VXstone/topo-daten
+    (SBB «Linie mit Betriebspunkten» + Perrons + OSM). Enthaelt auch Abzweigstellen
+    und Betriebspunkte ohne Publikumsverkehr – wichtig fuer NGE-Knoten wie «Olten Ost (Abzw)»."""
+    out = []
+    for e in json.loads(Path(path).read_text(encoding="utf-8")):
+        if not e.get("abk") or e.get("didok") in (None, ""):
+            continue
+        num = int(e["didok"])
+        if num < 1000000:
+            num += 8500000
+        out.append(Station(num, e["abk"], e.get("name") or e["abk"], _float(e.get("lat")),
+                           _float(e.get("lon")), "topo-daten"))
+    return out
+
+
 def build_db(service_points: list[Path], hrdf_zip: Path | None, out: Path,
-             all_modes: bool = False) -> list[Station]:
+             all_modes: bool = False, topo: list[Path] | None = None) -> list[Station]:
     by_num: dict[int, Station] = {}
     for p in service_points:
         for s in read_service_points(p, all_modes):
             by_num.setdefault(s.number, s)
+    for p in topo or []:
+        for s in read_topo_betriebspunkte(p):
+            cur = by_num.get(s.number)
+            if cur is None:
+                by_num[s.number] = s
+            elif cur.lat is None and s.lat is not None:
+                cur.lat, cur.lon = s.lat, s.lon
     if hrdf_zip:
         for s in read_hrdf_stations(hrdf_zip):
             cur = by_num.get(s.number)
