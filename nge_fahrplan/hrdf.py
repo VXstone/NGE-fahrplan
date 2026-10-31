@@ -31,6 +31,7 @@ class HRDF:
         self.names = {n.rsplit("/", 1)[-1].upper(): n for n in self.zip.namelist()}
         self.start, self.end = self._eckdaten()
         self._bitfields: dict[str, str] | None = None
+        self.offset = 0          # Korrektur Bit-Index <-> Tag (siehe calibrate_offset)
         self._lines: dict[str, str] | None = None
 
     # ---------- kleine Referenzdateien ----------
@@ -80,7 +81,7 @@ class HRDF:
         hexs = self.bitfields.get(bitfield)
         if hexs is None:
             return True
-        i = (day - self.start).days
+        i = (day - self.start).days + self.offset
         if i < 0 or i >= len(hexs) * 4:
             return False
         return bool(int(hexs[i // 4], 16) & (8 >> (i % 4)))
@@ -136,6 +137,8 @@ class HRDF:
 
         for raw in self._fplan_lines():
             line = raw.rstrip("\r\n")
+            if line.startswith("*"):
+                line = line.split("%", 1)[0].rstrip()   # Kommentar am Zeilenende (% ...)
             if line.startswith("*Z"):
                 yield from finish(cur)
                 n_total += 1
@@ -241,3 +244,35 @@ def subset(data: dict, station_numbers: list[int], categories: set[str] | None =
             out.append(dict(t, stops=stops))
     meta = dict(data.get("meta", {}), stations=list(station_numbers))
     return {"meta": meta, "trips": out}
+
+
+def runs_per_day(h: HRDF, data: dict, start: dt.date, days: int = 14) -> dict[str, int]:
+    """Anzahl Fahrten je Tag (fuer die Plausibilitaetspruefung der Verkehrstage)."""
+    return {str(start + dt.timedelta(d)): sum(1 for t in data["trips"]
+                                              if h.runs_on(t.get("bitfield"), start + dt.timedelta(d)))
+            for d in range(days)}
+
+
+def calibrate_offset(h: HRDF, data: dict, ref: dt.date) -> tuple[int, dict]:
+    """Bit-Verschiebung so waehlen, dass die wenigsten Fahrten auf Sonntage fallen.
+    Liefert (offset, Protokoll). Erwartet ist offset 0."""
+    protokoll = {}
+    best = None
+    for off in range(-3, 4):
+        h.offset = off
+        start = ref - dt.timedelta(days=ref.weekday())          # Montag
+        c = runs_per_day(h, data, start, 14)
+        wd = [0] * 7
+        for k, v in c.items():
+            wd[dt.date.fromisoformat(k).weekday()] += v
+        protokoll[str(off)] = wd
+        score = wd[6] - min(wd[:6])        # Sonntag soll deutlich unter allen Werktagen liegen
+        if best is None or score < best[0]:
+            best = (score, off)
+    h.offset = best[1]
+    return best[1], protokoll
+
+
+def filter_day(h: HRDF, data: dict, day: dt.date) -> dict:
+    trips = [t for t in data["trips"] if h.runs_on(t.get("bitfield"), day)]
+    return {"meta": dict(data.get("meta", {}), day=str(day), bit_offset=h.offset), "trips": trips}

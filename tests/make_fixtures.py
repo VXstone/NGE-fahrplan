@@ -81,6 +81,8 @@ def fplan() -> str:
     # Bus
     L += [z(fnr, "000801"), "*G B   8507000 8504100", "*L 101",
           stop(8507000, None, 7 * 60), stop(8504100, 8 * 60, None)]
+    # wie im echten FPLAN: Kommentar am Ende der *-Zeilen
+    L = [x + "  % kommentar" if x.startswith("*") else x for x in L]
     return "\n".join(L) + "\n"
 
 

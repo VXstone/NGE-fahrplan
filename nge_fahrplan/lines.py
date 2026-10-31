@@ -126,7 +126,8 @@ def _stops_from_trip(trip: dict, db: StationDB) -> list[dict]:
     res = []
     st = trip["stops"]
     for i, s in enumerate(st):
-        abbr = db.by_num[s["num"]].abbr if s["num"] in db.by_num else str(s["num"])
+        st = db.by_num.get(s["num"])
+        abbr = (st.abbr or st.name) if st else str(s["num"])   # Ausland oft ohne Kuerzel
         d = {"at": abbr}
         if i > 0 and s["arr"] is not None:
             d["arr"] = s["arr"]
@@ -171,8 +172,10 @@ def suggest(trips_file: Path, db: StationDB, out: Path, name: str = "NGE Netz",
         for k, p in enumerate(fwd):
             first = db.by_num.get(seq[0]); last = db.by_num.get(seq[-1])
             label = line if line else cat
+            fa = (first.abbr or first.name) if first else seq[0]
+            la = (last.abbr or last.name) if last else seq[-1]
             tr = {
-                "name": f"{label} {first.abbr if first else seq[0]}-{last.abbr if last else seq[-1]}",
+                "name": f"{label} {fa}-{la}",
                 "category": CATEGORY_MAP.get(cat, "S"),
                 "hrdf": {"cat": cat, "line": line, "trips": p["n"], "hours": p["hours"]},
                 "frequency": p["freq"],
@@ -201,7 +204,7 @@ def table(trips_file: Path, db: StationDB, rail_only: bool = True) -> str:
     trips = [t for t in data["trips"] if not rail_only or t["cat"] in RAIL]
     rows = []
     for (cat, line, seq, _), ts in sorted(group_trips(trips).items(), key=lambda kv: (kv[0][0], kv[0][1])):
-        names = [db.by_num[n].abbr if n in db.by_num else str(n) for n in seq]
+        names = [(db.by_num[n].abbr or db.by_num[n].name) if n in db.by_num else str(n) for n in seq]
         pats = _patterns(ts, merge=True, include_rare=True)
         lagen = ", ".join(f":{p['minute']:02d}/{p['freq']}'" + ("" if p["timecat"] == "7/24" else f" {p['timecat']}")
                           for p in pats[:4])

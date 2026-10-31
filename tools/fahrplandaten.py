@@ -72,12 +72,30 @@ if (data / "betriebspunkte.json").exists():
     args += ["--topo", str(data / "betriebspunkte.json")]
 schritt("stations", lambda: cli.main(args))
 
+alle = data / "trips_alle_tage.json.gz"
 if hrdf_zip and (out / "stations.csv").exists():
     ex = ["extract", "--db", str(out / "stations.csv"), "--hrdf", str(hrdf_zip), "--all-stations",
-          "--out", str(out / "trips_bahn.json.gz")]
-    if a.day:
-        ex += ["--day", a.day]
+          "--all-days", "--out", str(alle)]
     schritt("extract", lambda: cli.main(ex))
+
+
+def tag_filtern():
+    h = hrdf.HRDF(hrdf_zip)
+    d = hrdf.load_trips(alle)
+    ref = dt.date.fromisoformat(a.day) if a.day else cli._ref_day(h, None)
+    off, prot = hrdf.calibrate_offset(h, d, ref)
+    stand["verkehrstage"] = {
+        "bit_offset": off, "erwartet": 0,
+        "fahrten_je_wochentag_Mo_bis_So_je_offset": prot,
+        "ohne_bitfeld": sum(1 for t in d["trips"] if not t.get("bitfield")),
+        "mit_bitfeld": sum(1 for t in d["trips"] if t.get("bitfield")),
+        "fahrten_je_tag": hrdf.runs_per_day(h, d, ref - dt.timedelta(days=ref.weekday()), 14),
+    }
+    hrdf.save_trips(hrdf.filter_day(h, d, ref), out / "trips_bahn.json.gz")
+
+
+if alle.exists():
+    schritt("verkehrstag", tag_filtern)
 
 tb = out / "trips_bahn.json.gz"
 if tb.exists():
