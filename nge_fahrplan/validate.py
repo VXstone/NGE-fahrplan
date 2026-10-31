@@ -61,8 +61,8 @@ def validate(d: dict) -> list[str]:
             if k not in s:
                 err.append(f"Section {s['id']}: {k} fehlt")
             elif k.endswith("TravelTime") or k == "travelTime":
-                if s[k]["time"] < 0:
-                    err.append(f"Section {s['id']}: {k} negativ ({s[k]['time']})")
+                if s[k]["time"] <= 0:
+                    err.append(f"Section {s['id']}: {k} = {s[k]['time']} (NGE braucht Fahrzeit > 0)")
             elif not 0 <= s[k]["time"] <= 59:
                 err.append(f"Section {s['id']}: {k}.time ausserhalb 0..59")
 
