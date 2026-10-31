@@ -227,7 +227,7 @@ def save_trips(data: dict, out: Path) -> None:
 
 
 def subset(data: dict, station_numbers: list[int], categories: set[str] | None = None,
-           min_stops: int = 2) -> dict:
+           min_stops: int = 2, split_gaps: bool = False) -> dict:
     """Region aus einer vorbereiteten Fahrtendatei (z.B. trips_bahn.json.gz) schneiden.
     Weggelassene Halte werden zu ``skipped`` des naechsten behaltenen Halts addiert."""
     keep = set(station_numbers)
@@ -242,8 +242,19 @@ def subset(data: dict, station_numbers: list[int], categories: set[str] | None =
                 acc = 0
             else:
                 acc += s.get("skipped", 0) + (0 if s.get("pass") else 1)
-        if sum(1 for s in stops if not s["pass"]) >= min_stops:
-            out.append(dict(t, stops=stops))
+        parts = [stops]
+        if split_gaps:
+            # Fahrt dort trennen, wo sie die Region verlaesst (Halte ausserhalb dazwischen)
+            parts, cur = [], []
+            for s in stops:
+                if cur and s["skipped"]:
+                    parts.append(cur)
+                    cur = []
+                cur.append(dict(s, skipped=0) if not cur else s)
+            parts.append(cur)
+        for k, part in enumerate(parts):
+            if sum(1 for s in part if not s["pass"]) >= min_stops:
+                out.append(dict(t, stops=part, fnr=t["fnr"] + (f"/{k}" if len(parts) > 1 else "")))
     meta = dict(data.get("meta", {}), stations=list(station_numbers))
     return {"meta": meta, "trips": out}
 

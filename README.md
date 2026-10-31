@@ -151,8 +151,12 @@ Zeitkategorien: `7/24 HVZ zeitweise`. `examples/spec_example.json` läuft ohne D
   direkten `extract` aus dem ZIP.
 - Flügel-/Durchbindungszüge (z.B. S5/S52 Bern–Kerzers–Neuchâtel/Murten) stehen in
   HRDF als getrennte Fahrten je Abschnitt und erscheinen darum als Teilstücke.
-- `suggest` erzeugt pro Linie auch HVZ- und «zeitweise»-Lagen; für eine
-  Grundtakt-Netzgrafik diese in der spec mit `"skip": true` weglassen.
+- `suggest` erzeugt pro Linie auch HVZ- und «zeitweise»-Lagen. Mit
+  `--grundtakt` (bei `suggest` und `run`) bleiben nur Mittagslagen (mind. 4 der
+  Stunden 9–16 Uhr) – auch wenn eine Linie morgens andere Minuten fährt (z.B.
+  R 42 Moutier ab :45 vormittags, :19 ab Mittag).
+- `--split-gaps` trennt Fahrten, wo sie die Region verlassen und wieder
+  hereinkommen (sonst entstünde z.B. ein Abschnitt Kerzers–Neuchâtel ohne Ins).
 - Port-Reihenfolge bei parallelen Linien: NGE ordnet beim Laden selbst neu
   (Greedy-Heuristik), Kreuzungen sind kein Datenfehler.
 

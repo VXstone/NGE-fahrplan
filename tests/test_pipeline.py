@@ -125,6 +125,19 @@ class Pipeline(unittest.TestCase):
                    if x["numberOfStops"] == 2)
         self.assertEqual(sec["travelTime"]["time"], 17)
 
+    def test_split_gaps(self):
+        full = self.tmp / "tb2.json.gz"
+        main(["extract", "--db", str(self.db_path), "--hrdf", str(self.zip), "--all-stations",
+              "--day", "2026-03-24", "--out", str(full)])
+        # BN und INS ohne KZ: IR 66 verlaesst die Region nicht -> bleibt ganz;
+        # mit KZ,NE ohne INS/GAMP: S5 INS..NE faellt weg, IR 66 KZ-NE wird getrennt
+        d = hrdf.subset(hrdf.load_trips(full), [8504489, 8504221], split_gaps=True)
+        self.assertFalse([t for t in d["trips"] if len(t["stops"]) >= 2
+                          and t["stops"][-1]["skipped"]])
+        d2 = hrdf.subset(hrdf.load_trips(full), [8504489, 8504221], split_gaps=False)
+        self.assertTrue(any(t["cat"] == "IR" for t in d2["trips"]))
+        self.assertFalse(any(t["cat"] == "IR" for t in d["trips"]))
+
     def test_symmetric_build_without_back(self):
         spec = {"trainruns": [{"name": "X", "category": "IC", "frequency": "30",
                                "stops": [{"at": "BN", "dep": 2}, {"at": "FR", "arr": 22, "dep": 24},

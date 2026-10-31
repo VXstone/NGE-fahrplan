@@ -122,6 +122,19 @@ def _merge_dense(pats: list[dict]) -> list[dict]:
     return out
 
 
+MITTAG = set(range(9, 17))
+
+
+def _grundtakt(pats: list[dict]) -> list[dict]:
+    """Mittagslagen: fahren in mind. 4 der Stunden 9–16 Uhr. Massgebend fuer eine
+    Grundtakt-Netzgrafik, auch wenn die Linie morgens/abends andere Minuten hat."""
+    out = []
+    for p in pats:
+        if len({h % 24 for h in p["hours"]} & MITTAG) >= 4:
+            out.append(dict(p, timecat="7/24"))
+    return out
+
+
 def _stops_from_trip(trip: dict, db: StationDB) -> list[dict]:
     res = []
     st = trip["stops"]
@@ -143,7 +156,7 @@ def _stops_from_trip(trip: dict, db: StationDB) -> list[dict]:
 
 def suggest(trips_file: Path, db: StationDB, out: Path, name: str = "NGE Netz",
             merge: bool = True, include_rare: bool = False,
-            rail_only: bool = True) -> dict:
+            rail_only: bool = True, grundtakt: bool = False) -> dict:
     data = load_trips(trips_file)
     trips = [t for t in data["trips"] if not rail_only or t["cat"] in RAIL]
     groups = group_trips(trips)
@@ -169,6 +182,10 @@ def suggest(trips_file: Path, db: StationDB, out: Path, name: str = "NGE Netz",
             done.add(back_key)
             back = _patterns(groups[back_key], merge, include_rare)
         fwd = _patterns(groups[key], merge, include_rare)
+        if grundtakt:
+            fwd = _grundtakt(fwd)
+            if back:
+                back = _grundtakt(back) or back
         for k, p in enumerate(fwd):
             first = db.by_num.get(seq[0]); last = db.by_num.get(seq[-1])
             label = line if line else cat

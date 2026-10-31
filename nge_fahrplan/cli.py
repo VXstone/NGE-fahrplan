@@ -81,7 +81,8 @@ def cmd_extract(a):
     src = a.from_trips or (str(Path(a.db).parent / "trips_bahn.json.gz")
                            if not Path(a.hrdf).exists() and (Path(a.db).parent / "trips_bahn.json.gz").exists() else None)
     if src:
-        data = hrdf.subset(hrdf.load_trips(Path(src)), [s.number for s in sts], cats)
+        data = hrdf.subset(hrdf.load_trips(Path(src)), [s.number for s in sts], cats,
+                           split_gaps=getattr(a, "split_gaps", False))
         hrdf.save_trips(data, Path(a.out))
         print(f"{len(data['trips'])} Fahrten aus {src} (Tag {data['meta'].get('day')}) -> {a.out}", file=sys.stderr)
         return
@@ -98,7 +99,8 @@ def cmd_lines(a):
 
 def cmd_suggest(a):
     spec = lines.suggest(Path(a.trips), didok.StationDB(Path(a.db)), Path(a.out), a.name,
-                         merge=not a.no_merge, include_rare=a.include_rare)
+                         merge=not a.no_merge, include_rare=a.include_rare,
+                         grundtakt=getattr(a, "grundtakt", False))
     print(f"{len(spec['trainruns'])} Linien -> {a.out}", file=sys.stderr)
 
 
@@ -185,6 +187,8 @@ def main(argv=None):
         p.add_argument("--categories", help="HRDF-Gattungen, z.B. IC,IR,RE,S (Standard: alle Bahn)")
         p.add_argument("--all-stations", action="store_true", help="alle Stationen der Datenbank (ganze Schweiz)")
         p.add_argument("--from-trips", help="vorbereitete Fahrtendatei statt HRDF (trips_bahn.json.gz)")
+        p.add_argument("--split-gaps", action="store_true",
+                       help="Fahrten trennen, wo sie die Region verlassen (keine Abkuerzungs-Abschnitte)")
 
     p = sub("extract", cmd_extract, "Fahrten aus HRDF ziehen"); region(p)
     p.add_argument("--out", default="trips.json")
@@ -197,6 +201,7 @@ def main(argv=None):
     p.add_argument("--out", default="spec.json"); p.add_argument("--name", default="NGE Netz")
     p.add_argument("--no-merge", action="store_true", help="30'/20'/15' nicht zusammenfassen")
     p.add_argument("--include-rare", action="store_true")
+    p.add_argument("--grundtakt", action="store_true", help="nur ganztaegige Lagen (ohne HVZ/zeitweise)")
 
     def buildopts(p):
         p.add_argument("--upk", type=float, default=80, help="NGE-Einheiten pro km (Layoutdichte)")
@@ -210,6 +215,7 @@ def main(argv=None):
 
     p = sub("run", cmd_run, "extract + suggest + build in einem Schritt"); region(p); buildopts(p)
     p.add_argument("--name", default="NGE Netz"); p.add_argument("--work", default="work")
+    p.add_argument("--grundtakt", action="store_true", help="nur ganztaegige Lagen (ohne HVZ/zeitweise)")
     p.add_argument("--out", default="netzgrafik.json")
 
     p = sub("validate", cmd_validate, "NGE-JSON pruefen"); p.add_argument("file")
