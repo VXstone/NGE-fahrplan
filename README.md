@@ -147,8 +147,8 @@ Zeitkategorien: `7/24 HVZ zeitweise`. `examples/spec_example.json` läuft ohne D
 - Verkehrstage: Im echten HRDF 2026 ist das Bitfeld gegenüber `ECKDATEN` um
   **2 Tage verschoben** (Bit 2 = erster Fahrplantag). Der Workflow ermittelt das
   jedes Mal neu am Sonntagsminimum und schreibt es nach `stand.json`
-  (`verkehrstage.bit_offset`). Beim direkten `extract` aus dem ZIP ist der
-  Offset 0 – dort besser `--all-days` oder die vorbereiteten Daten nehmen.
+  (`verkehrstage.bit_offset`); der Code nimmt 2 als Standard, auch beim
+  direkten `extract` aus dem ZIP.
 - Flügel-/Durchbindungszüge (z.B. S5/S52 Bern–Kerzers–Neuchâtel/Murten) stehen in
   HRDF als getrennte Fahrten je Abschnitt und erscheinen darum als Teilstücke.
 - `suggest` erzeugt pro Linie auch HVZ- und «zeitweise»-Lagen; für eine

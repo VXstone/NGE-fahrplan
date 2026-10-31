@@ -31,7 +31,9 @@ class HRDF:
         self.names = {n.rsplit("/", 1)[-1].upper(): n for n in self.zip.namelist()}
         self.start, self.end = self._eckdaten()
         self._bitfields: dict[str, str] | None = None
-        self.offset = 0          # Korrektur Bit-Index <-> Tag (siehe calibrate_offset)
+        # Bit-Index = Tage seit ECKDATEN-Start + 2 (im echten HRDF 2026 per Sonntagsminimum
+        # ermittelt, Workflow-Lauf 31.10.2026); calibrate_offset prueft das bei jedem Lauf
+        self.offset = 2
         self._lines: dict[str, str] | None = None
 
     # ---------- kleine Referenzdateien ----------
