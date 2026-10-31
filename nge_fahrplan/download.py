@@ -13,14 +13,18 @@ import sys
 import urllib.request
 from pathlib import Path
 
-CKAN = "https://ckan.opendata.swiss/api/3/action/package_show?id={}"
+CKAN = [
+    "https://ckan.opendata.swiss/api/3/action/package_show?id={}",
+    "https://opendata.swiss/api/3/action/package_show?id={}",
+    "https://data.opentransportdata.swiss/api/3/action/package_show?id={}",
+]
 
-# Datensatz-Slugs auf opendata.swiss
+# Datensatz-Slugs (opendata.swiss bzw. opentransportdata.swiss); {year} wird ersetzt
 DATASETS = {
     # atlas v2 (Nachfolger DIDOK) – alle Dienststellen inkl. Betriebspunkte
-    "didok": "service-point-v2",
-    # HRDF 5.40 – {year} wird ersetzt
-    "hrdf": "fahrplan-{year}-hrdf-format-5-4",
+    "didok": ["service-point-v2", "service-points-actual-date", "service-points-full"],
+    # HRDF 5.40
+    "hrdf": ["fahrplan-{year}-hrdf-format-5-4", "timetable-54-{year}-hrdf"],
 }
 
 # Bevorzugte Ressource je Datensatz (Teilstring im Dateinamen)
@@ -32,6 +36,10 @@ PREFERRED = {
 # Betriebspunkte aus dem eigenen Repo topo-daten (GitHub-Release, monatlich neu)
 TOPO_URL = "https://github.com/VXstone/topo-daten/releases/download/vorbereitung/betriebspunkte.json"
 
+# vorbereitete Fahrplandaten aus diesem Repo (Workflow .github/workflows/fahrplandaten.yml)
+RELEASE = "https://github.com/VXstone/NGE-fahrplan/releases/download/fahrplandaten/"
+RELEASE_FILES = ["stations.csv", "trips_bahn.json.gz", "stand.json"]
+
 UA = {"User-Agent": "nge-fahrplan/0.1 (+https://github.com/OpenRailAssociation/netzgrafik-editor-frontend)"}
 
 
@@ -42,25 +50,33 @@ def _get_json(url: str) -> dict:
 
 
 def find_resource(kind: str, year: int | None = None) -> dict:
-    """Neueste passende Ressource (dict mit url, name, issued) eines Datensatzes."""
-    slug = DATASETS[kind].format(year=year or "")
-    pkg = _get_json(CKAN.format(slug))
-    if not pkg.get("success"):
-        raise RuntimeError(f"CKAN: Datensatz {slug} nicht gefunden")
-    res = pkg["result"]["resources"]
-    for pref in PREFERRED[kind]:
-        cand = [r for r in res
-                if pref in (r.get("download_url") or r.get("url") or "").lower()
-                and (r.get("download_url") or r.get("url", "")).lower().endswith((".csv", ".zip"))]
-        if cand:
-            cand.sort(key=lambda r: (r.get("issued") or r.get("created") or "",
-                                     r.get("download_url") or r.get("url")), reverse=True)
-            r = cand[0]
-            return {"url": r.get("download_url") or r["url"],
-                    "name": (r.get("download_url") or r["url"]).rsplit("/", 1)[-1],
-                    "issued": r.get("issued") or r.get("created")}
-    raise RuntimeError(f"Keine passende Ressource in {slug} gefunden "
-                       f"({len(res)} Ressourcen, gesucht: {PREFERRED[kind]})")
+    """Neueste passende Ressource (dict mit url, name, issued) eines Datensatzes.
+    Probiert mehrere CKAN-Instanzen und Slugs durch."""
+    tried = []
+    for slug in DATASETS[kind]:
+        slug = slug.format(year=year or "")
+        for api in CKAN:
+            try:
+                pkg = _get_json(api.format(slug))
+            except Exception as e:
+                tried.append(f"{api.format(slug)}: {type(e).__name__}")
+                continue
+            if not pkg.get("success"):
+                tried.append(f"{api.format(slug)}: success=false")
+                continue
+            res = pkg["result"]["resources"]
+            for pref in PREFERRED[kind]:
+                cand = []
+                for r in res:
+                    u = r.get("download_url") or r.get("url") or ""
+                    if pref in u.lower() and u.lower().split("?")[0].endswith((".csv", ".zip")):
+                        cand.append((r.get("issued") or r.get("created") or "", u))
+                if cand:
+                    cand.sort(reverse=True)
+                    issued, u = cand[0]
+                    return {"url": u, "name": u.split("?")[0].rsplit("/", 1)[-1], "issued": issued}
+            tried.append(f"{api.format(slug)}: {len(res)} Ressourcen, keine passt zu {PREFERRED[kind]}")
+    raise RuntimeError("Keine Ressource gefunden:\n  " + "\n  ".join(tried))
 
 
 def download(url: str, dest: Path, force: bool = False) -> Path:
@@ -90,6 +106,10 @@ def download(url: str, dest: Path, force: bool = False) -> Path:
 
 def fetch(kind: str, data_dir: Path, year: int | None = None, url: str | None = None,
           force: bool = False) -> Path:
+    if kind == "release":
+        for f in RELEASE_FILES:
+            download((url or RELEASE) + f, data_dir / f, force=True)
+        return data_dir / "trips_bahn.json.gz"
     if kind == "topo":
         return download(url or TOPO_URL, data_dir / "betriebspunkte.json", force=True)
     if url is None:

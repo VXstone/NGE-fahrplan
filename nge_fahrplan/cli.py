@@ -24,6 +24,8 @@ def _ref_day(h: hrdf.HRDF, day: str | None) -> dt.date:
 
 def _stations(a, db: didok.StationDB) -> list[didok.Station]:
     out = []
+    if getattr(a, "all_stations", False):
+        return [s for s in db.by_num.values() if s.abbr or s.number // 100000 != 85]
     if a.stations:
         for tok in a.stations.split(","):
             if tok.strip():
@@ -42,7 +44,7 @@ def _stations(a, db: didok.StationDB) -> list[didok.Station]:
 
 
 def cmd_fetch(a):
-    kinds = [k for k in ("didok", "hrdf", "topo") if getattr(a, k)] or ["topo", "didok", "hrdf"]
+    kinds = [k for k in ("didok", "hrdf", "topo", "release") if getattr(a, k)] or ["topo", "didok", "hrdf"]
     for k in kinds:
         try:
             download.fetch(k, Path(a.data), year=a.year, url=a.url, force=a.force)
@@ -74,12 +76,19 @@ def cmd_find(a):
 def cmd_extract(a):
     db = didok.StationDB(Path(a.db))
     sts = _stations(a, db)
-    print("Stationen: " + ",".join(s.abbr for s in sts), file=sys.stderr)
+    print(f"{len(sts)} Stationen: " + ",".join(s.abbr for s in sts[:40]), file=sys.stderr)
+    cats = set(a.categories.split(",")) if a.categories else lines.RAIL
+    src = a.from_trips or (str(Path(a.db).parent / "trips_bahn.json.gz")
+                           if not Path(a.hrdf).exists() and (Path(a.db).parent / "trips_bahn.json.gz").exists() else None)
+    if src:
+        data = hrdf.subset(hrdf.load_trips(Path(src)), [s.number for s in sts], cats)
+        hrdf.save_trips(data, Path(a.out))
+        print(f"{len(data['trips'])} Fahrten aus {src} (Tag {data['meta'].get('day')}) -> {a.out}", file=sys.stderr)
+        return
     h = hrdf.HRDF(Path(a.hrdf))
     day = None if a.all_days else _ref_day(h, a.day)
     if day:
         print(f"Referenztag {day} (Fahrplan {h.start}..{h.end})", file=sys.stderr)
-    cats = set(a.categories.split(",")) if a.categories else lines.RAIL
     hrdf.extract(Path(a.hrdf), [s.number for s in sts], Path(a.out), day, cats, verbose=True)
 
 
@@ -151,6 +160,8 @@ def main(argv=None):
     p = sub("fetch", cmd_fetch, "DIDOK/atlas und HRDF von opentransportdata.swiss laden")
     p.add_argument("--didok", action="store_true"); p.add_argument("--hrdf", action="store_true")
     p.add_argument("--topo", action="store_true", help="betriebspunkte.json aus VXstone/topo-daten")
+    p.add_argument("--release", action="store_true",
+                   help="vorbereitete Daten (stations.csv + trips_bahn.json.gz) aus dem Release 'fahrplandaten'")
     p.add_argument("--year", type=int, default=dt.date.today().year + (dt.date.today().month == 12))
     p.add_argument("--url", help="direkte Download-URL statt CKAN-Suche")
     p.add_argument("--data", default=str(DATA)); p.add_argument("--force", action="store_true")
@@ -172,6 +183,8 @@ def main(argv=None):
         p.add_argument("--day", help="Referenztag JJJJ-MM-TT (Standard: Dienstag Mitte Fahrplanjahr)")
         p.add_argument("--all-days", action="store_true", help="keine Verkehrstagsfilterung")
         p.add_argument("--categories", help="HRDF-Gattungen, z.B. IC,IR,RE,S (Standard: alle Bahn)")
+        p.add_argument("--all-stations", action="store_true", help="alle Stationen der Datenbank (ganze Schweiz)")
+        p.add_argument("--from-trips", help="vorbereitete Fahrtendatei statt HRDF (trips_bahn.json.gz)")
 
     p = sub("extract", cmd_extract, "Fahrten aus HRDF ziehen"); region(p)
     p.add_argument("--out", default="trips.json")

@@ -104,6 +104,27 @@ class Pipeline(unittest.TestCase):
         kz = next(n for n in d["nodes"] if n["betriebspunktName"] == "KZ")
         self.assertTrue(kz["transitions"])
 
+    def test_full_extract_then_subset(self):
+        full = self.tmp / "trips_bahn.json.gz"
+        main(["extract", "--db", str(self.db_path), "--hrdf", str(self.zip), "--all-stations",
+              "--day", "2026-03-24", "--out", str(full)])
+        sub = self.tmp / "sub.json"
+        main(["extract", "--db", str(self.db_path), "--from-trips", str(full),
+              "--stations", "BN,KZ,INS,NE", "--out", str(sub)])
+        d = hrdf.load_trips(sub)
+        s5 = [t for t in d["trips"] if t["line"] == "S5" and t["stops"][0]["num"] == 8504488]
+        self.assertTrue(s5)
+        self.assertEqual([s["num"] for s in s5[0]["stops"]], [8504488, 8504221])
+        self.assertEqual(s5[0]["stops"][1]["skipped"], 2)               # GAMP + Fiktiv
+        out = self.tmp / "netz_sub.json"
+        main(["run", "--db", str(self.db_path), "--hrdf", "/nicht/da.zip", "--from-trips", str(full),
+              "--stations", "BN,KZ,INS,NE", "--work", str(self.tmp / "w2"), "--out", str(out)])
+        n = json.loads(out.read_text())
+        self.assertEqual(validate.validate(n), [])
+        sec = next(x for x in n["trainrunSections"]
+                   if x["numberOfStops"] == 2)
+        self.assertEqual(sec["travelTime"]["time"], 17)
+
     def test_symmetric_build_without_back(self):
         spec = {"trainruns": [{"name": "X", "category": "IC", "frequency": "30",
                                "stops": [{"at": "BN", "dep": 2}, {"at": "FR", "arr": 22, "dep": 24},

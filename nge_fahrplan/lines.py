@@ -23,6 +23,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from .didok import StationDB
+from .hrdf import load_trips
 
 # HRDF-Gattung -> NGE-Kategorie (shortName in den Standard-Metadaten)
 CATEGORY_MAP = {
@@ -142,7 +143,7 @@ def _stops_from_trip(trip: dict, db: StationDB) -> list[dict]:
 def suggest(trips_file: Path, db: StationDB, out: Path, name: str = "NGE Netz",
             merge: bool = True, include_rare: bool = False,
             rail_only: bool = True) -> dict:
-    data = json.loads(Path(trips_file).read_text())
+    data = load_trips(trips_file)
     trips = [t for t in data["trips"] if not rail_only or t["cat"] in RAIL]
     groups = group_trips(trips)
     # Linienrichtung: Start an der Station, die in der Stationsliste zuerst kommt
@@ -196,7 +197,7 @@ def suggest(trips_file: Path, db: StationDB, out: Path, name: str = "NGE Netz",
 
 def table(trips_file: Path, db: StationDB, rail_only: bool = True) -> str:
     """Uebersicht fuer die QA (Linie, Halte, Lagen, Takt)."""
-    data = json.loads(Path(trips_file).read_text())
+    data = load_trips(trips_file)
     trips = [t for t in data["trips"] if not rail_only or t["cat"] in RAIL]
     rows = []
     for (cat, line, seq, _), ts in sorted(group_trips(trips).items(), key=lambda kv: (kv[0][0], kv[0][1])):

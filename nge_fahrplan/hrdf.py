@@ -13,6 +13,7 @@ Wichtige Formatdetails (siehe NGE_JSON_Cookbook):
 from __future__ import annotations
 
 import datetime as dt
+import gzip
 import io
 import json
 import shutil
@@ -199,7 +200,44 @@ def extract(hrdf_zip: Path, station_numbers: list[int], out: Path,
         trips.append(t)
     meta = {"hrdf": Path(hrdf_zip).name, "period": [str(h.start), str(h.end)],
             "day": str(day) if day else None, "stations": list(station_numbers)}   # Reihenfolge = Linienrichtung
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"meta": meta, "trips": trips}, ensure_ascii=False))
+    save_trips({"meta": meta, "trips": trips}, out)
     print(f"{len(trips)} Fahrten -> {out}", file=sys.stderr)
     return len(trips)
+
+
+def load_trips(path: Path) -> dict:
+    """trips.json oder trips.json.gz lesen."""
+    path = Path(path)
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_trips(data: dict, out: Path) -> None:
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    opener = gzip.open if out.suffix == ".gz" else open
+    with opener(out, "wt", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+
+
+def subset(data: dict, station_numbers: list[int], categories: set[str] | None = None,
+           min_stops: int = 2) -> dict:
+    """Region aus einer vorbereiteten Fahrtendatei (z.B. trips_bahn.json.gz) schneiden.
+    Weggelassene Halte werden zu ``skipped`` des naechsten behaltenen Halts addiert."""
+    keep = set(station_numbers)
+    out = []
+    for t in data["trips"]:
+        if categories and t["cat"] not in categories:
+            continue
+        stops, acc = [], 0
+        for s in t["stops"]:
+            if s["num"] in keep:
+                stops.append(dict(s, skipped=(acc + s.get("skipped", 0)) if stops else 0))
+                acc = 0
+            else:
+                acc += s.get("skipped", 0) + (0 if s.get("pass") else 1)
+        if sum(1 for s in stops if not s["pass"]) >= min_stops:
+            out.append(dict(t, stops=stops))
+    meta = dict(data.get("meta", {}), stations=list(station_numbers))
+    return {"meta": meta, "trips": out}

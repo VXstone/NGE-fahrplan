@@ -20,7 +20,26 @@ Reines Python ≥ 3.10, **keine Abhängigkeiten**. Fasst den Workflow aus dem
                                                            von Hand prüfbar)
 ```
 
-## Schnellstart
+## Am schnellsten: vorbereitete Daten
+
+Der Workflow `.github/workflows/fahrplandaten.yml` holt jeden Samstag (und auf
+Knopfdruck unter *Actions → Fahrplandaten → Run workflow*) atlas, HRDF und die
+Betriebspunkte aus topo-daten und legt ins Release **`fahrplandaten`**:
+
+| Datei | Inhalt |
+|---|---|
+| `stations.csv` | Stationsdatenbank (atlas + topo-daten + HRDF) |
+| `trips_bahn.json.gz` | alle Bahnfahrten des Referenztags (Dienstag Mitte Fahrplanjahr), Halte an allen Stationen |
+| `stand.json` | Zeitpunkt, Quellen, Ergebnis jedes Schritts, Zahlen und Stichproben |
+
+Damit braucht niemand mehr das 450-MB-ZIP:
+
+```bash
+python -m nge_fahrplan fetch --release          # ein paar MB nach data/
+python -m nge_fahrplan run --stations BN,KZ,INS,NE,CF --from-trips data/trips_bahn.json.gz --out ne.json
+```
+
+## Schnellstart mit Rohdaten
 
 ```bash
 git clone <repo> && cd nge-fahrplan

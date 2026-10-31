@@ -1,0 +1,65 @@
+name: Fahrplandaten
+
+# Holt atlas-Dienststellen (DIDOK), HRDF-Fahrplan und die Betriebspunkte aus
+# VXstone/topo-daten, schneidet alle Bahnfahrten eines Referenztags heraus und
+# legt das Ergebnis ins Release "fahrplandaten":
+#   stations.csv, trips_bahn.json.gz, stand.json
+on:
+  schedule:
+    - cron: "17 3 * * 6"          # samstags (HRDF erscheint Di/Fr)
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Referenztag JJJJ-MM-TT (leer = Dienstag Mitte Fahrplanjahr)"
+        required: false
+      year:
+        description: "Fahrplanjahr (leer = aktuelles, im Dezember das naechste)"
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fahrplandaten.yml"
+      - "tools/fahrplandaten.py"
+      - "nge_fahrplan/hrdf.py"
+      - "nge_fahrplan/didok.py"
+      - "nge_fahrplan/download.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fahrplandaten
+  cancel-in-progress: false
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Daten holen und aufbereiten
+        id: bauen
+        continue-on-error: true
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.day }}" ]; then ARGS="$ARGS --day ${{ inputs.day }}"; fi
+          if [ -n "${{ inputs.year }}" ]; then ARGS="$ARGS --year ${{ inputs.year }}"; fi
+          python tools/fahrplandaten.py out $ARGS
+      - name: Release fahrplandaten aktualisieren
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view fahrplandaten >/dev/null 2>&1 || \
+            gh release create fahrplandaten --title "Fahrplandaten (automatisch)" \
+              --notes "Wird vom Workflow 'Fahrplandaten' erzeugt. Siehe stand.json."
+          FILES="out/stand.json"
+          # Daten nur ersetzen, wenn der Lauf vollstaendig war
+          if [ "${{ steps.bauen.outcome }}" = "success" ]; then
+            FILES="$FILES out/stations.csv out/trips_bahn.json.gz"
+          fi
+          gh release upload fahrplandaten $FILES --clobber
+          ls -la out
