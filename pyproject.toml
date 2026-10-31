@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nge-fahrplan"
+version = "0.1.0"
+description = "DIDOK/atlas-Dienststellen und HRDF-Fahrplan abfragen und daraus Netzgrafik-Editor-JSON zeichnen"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+nge-fahrplan = "nge_fahrplan.cli:main"
+
+[tool.setuptools]
+packages = ["nge_fahrplan"]
+
+[tool.setuptools.package-data]
+nge_fahrplan = ["metadata_default.json"]

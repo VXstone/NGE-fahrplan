@@ -1,0 +1,17 @@
+{
+ "name": "Beispiel ohne Downloads",
+ "positions": {"BN": [0, 0], "FR": [-640, 480], "KZ": [-480, -64], "INS": [-800, -160], "NE": [-1120, -64]},
+ "trainruns": [
+  {"name": "66 BN-NE", "category": "IR", "frequency": "60", "timeCategory": "7/24",
+   "direction": "round_trip",
+   "stops": [{"at": "BN", "dep": 13}, {"at": "KZ", "arr": 30, "dep": 31},
+             {"at": "INS", "arr": 36, "dep": 38}, {"at": "NE", "arr": 48}],
+   "back":  [{"at": "NE", "dep": 11}, {"at": "INS", "arr": 22, "dep": 24},
+             {"at": "KZ", "arr": 29, "dep": 30}, {"at": "BN", "arr": 47}]},
+  {"name": "IC BN-FR", "category": "IC", "frequency": "30",
+   "stops": [{"at": "BN", "dep": 4}, {"at": "FR", "arr": 25}]},
+  {"name": "RE INS-BN", "category": "RE", "frequency": "120",
+   "stops": [{"at": "INS", "dep": 1}, {"at": "KZ", "arr": 5, "dep": 5, "pass": true},
+             {"at": "BN", "arr": 20}]}
+ ]
+}

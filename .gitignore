@@ -1,0 +1,9 @@
+data/
+work/
+*.zip
+trips*.json
+__pycache__/
+*.egg-info/
+.venv/
+/netzgrafik*.json
+.nge-frontend/
