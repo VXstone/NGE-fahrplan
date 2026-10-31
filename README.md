@@ -144,8 +144,15 @@ Zeitkategorien: `7/24 HVZ zeitweise`. `examples/spec_example.json` läuft ohne D
 - Die Spaltennamen der atlas-CSV werden über Aliase erkannt (`didok.py`); ändert
   das BAV/SBB das Format, bricht `stations` mit der Liste der vorhandenen Spalten
   ab → Alias ergänzen.
-- Verkehrstage: Bit 0 des HRDF-Bitfelds = erster Tag aus `ECKDATEN`. Mit
-  `--all-days` wird nicht gefiltert.
+- Verkehrstage: Im echten HRDF 2026 ist das Bitfeld gegenüber `ECKDATEN` um
+  **2 Tage verschoben** (Bit 2 = erster Fahrplantag). Der Workflow ermittelt das
+  jedes Mal neu am Sonntagsminimum und schreibt es nach `stand.json`
+  (`verkehrstage.bit_offset`). Beim direkten `extract` aus dem ZIP ist der
+  Offset 0 – dort besser `--all-days` oder die vorbereiteten Daten nehmen.
+- Flügel-/Durchbindungszüge (z.B. S5/S52 Bern–Kerzers–Neuchâtel/Murten) stehen in
+  HRDF als getrennte Fahrten je Abschnitt und erscheinen darum als Teilstücke.
+- `suggest` erzeugt pro Linie auch HVZ- und «zeitweise»-Lagen; für eine
+  Grundtakt-Netzgrafik diese in der spec mit `"skip": true` weglassen.
 - Port-Reihenfolge bei parallelen Linien: NGE ordnet beim Laden selbst neu
   (Greedy-Heuristik), Kreuzungen sind kein Datenfehler.
 
