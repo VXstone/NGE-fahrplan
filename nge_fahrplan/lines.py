@@ -126,8 +126,8 @@ def _stops_from_trip(trip: dict, db: StationDB) -> list[dict]:
     res = []
     st = trip["stops"]
     for i, s in enumerate(st):
-        st = db.by_num.get(s["num"])
-        abbr = (st.abbr or st.name) if st else str(s["num"])   # Ausland oft ohne Kuerzel
+        sta = db.by_num.get(s["num"])
+        abbr = (sta.abbr or sta.name) if sta else str(s["num"])   # Ausland oft ohne Kuerzel
         d = {"at": abbr}
         if i > 0 and s["arr"] is not None:
             d["arr"] = s["arr"]
