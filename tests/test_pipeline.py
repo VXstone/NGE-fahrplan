@@ -187,8 +187,9 @@ class Perlschnur(unittest.TestCase):
         out, _ = nge.build(spec, DB(), layout="perlschnur", spacing=256)
         self.assertEqual(validate.validate(out), [])
         p = {n["betriebspunktName"]: (n["positionX"], n["positionY"]) for n in out["nodes"]}
-        ys = {p[k][1] for k in ("H", "A1", "A2", "A3", "A4", "AE")}
+        ys = {p[k][1] for k in ("A1", "A2", "A3", "A4", "AE")}
         self.assertEqual(len(ys), 1)                                  # eine Reihe
+        self.assertTrue(p["H"][1] <= ys.pop() <= p["H"][1] + 4 * 32)  # auf Hoehe von H
         xs = [p[k][0] for k in ("A1", "A2", "A3", "A4", "AE")]
         self.assertEqual({a - b for a, b in zip(xs, xs[1:])}, {256})  # gleicher Abstand
         self.assertLess(xs[0], p["H"][0])                             # nach Westen

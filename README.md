@@ -67,11 +67,23 @@ python -m nge_fahrplan departures netzgrafik.json NE         # Minuten vs. SMA-N
 
 Zu dicht? Schematisches Layout «Perlschnur»: Knotenbahnhöfe (≥ 3 Nachbarn)
 bleiben ungefähr geografisch, die Halte dazwischen werden gleichmässig
-aufgereiht, offene Äste in festem Abstand waagrecht/senkrecht/45° gelegt:
+aufgereiht, offene Äste in festem Abstand waagrecht oder senkrecht gelegt:
 
 ```bash
 python -m nge_fahrplan build --spec spec.json --layout perlschnur --abstand 256
 ```
+
+Alle Abschnitte laufen möglichst waagrecht oder senkrecht (in NGE am besten
+lesbar); Ketten zwischen zwei Knoten werden dafür als Winkel gelegt, mit einem
+Halt auf jeder Ecke. Ganze Netzteile verschieben, um Platz zu schaffen – in der
+Spec, z.B. Wettingen und alles links davon um 768 nach links:
+
+```json
+"shift": [{"from": "WE", "dir": "left", "by": 768}]
+```
+
+(`dir`: `left`/`right`/`up`/`down`; verschoben werden die Knotenbahnhöfe, die Äste
+und Ketten werden danach neu gelegt.)
 
 `--abstand` = Abstand zweier Perlen in NGE-Einheiten (256 ≈ etwas mehr als
 Brugg-Frick–Stein-Säckingen im geografischen Layout mit `--upk 40`).
