@@ -162,3 +162,33 @@ class Pipeline(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Perlschnur(unittest.TestCase):
+    def test_ast_gleichmaessig_aufgereiht(self):
+        # Stern: Knoten H mit drei Aesten; Ast nach Westen hat 4 Zwischenhalte
+        class St:
+            def __init__(s, abbr, lat, lon): s.abbr, s.name, s.lat, s.lon = abbr, abbr, lat, lon
+        coords = {"H": (47.5, 8.2), "A1": (47.51, 8.1), "A2": (47.5, 8.0), "A3": (47.52, 7.9),
+                  "A4": (47.51, 7.8), "AE": (47.53, 7.6), "N": (47.6, 8.2), "O": (47.5, 8.4)}
+
+        class DB:
+            def resolve(s, a): return St(a, *coords[a])
+        spec = {"trainruns": [
+            {"name": "w", "category": "S", "stops": [{"at": a, "dep": 0} for a in
+                                                     ("H", "A1", "A2", "A3", "A4", "AE")]},
+            {"name": "n", "category": "S", "stops": [{"at": "H", "dep": 0}, {"at": "N", "arr": 5}]},
+            {"name": "o", "category": "S", "stops": [{"at": "H", "dep": 0}, {"at": "O", "arr": 5}]}]}
+        for tr in spec["trainruns"]:
+            for i, s in enumerate(tr["stops"]):
+                s.pop("dep", None); s.pop("arr", None)
+                if i: s["arr"] = 2 * i
+                if i < len(tr["stops"]) - 1: s["dep"] = 2 * i + 1
+        out, _ = nge.build(spec, DB(), layout="perlschnur", spacing=256)
+        self.assertEqual(validate.validate(out), [])
+        p = {n["betriebspunktName"]: (n["positionX"], n["positionY"]) for n in out["nodes"]}
+        ys = {p[k][1] for k in ("H", "A1", "A2", "A3", "A4", "AE")}
+        self.assertEqual(len(ys), 1)                                  # eine Reihe
+        xs = [p[k][0] for k in ("A1", "A2", "A3", "A4", "AE")]
+        self.assertEqual({a - b for a, b in zip(xs, xs[1:])}, {256})  # gleicher Abstand
+        self.assertLess(xs[0], p["H"][0])                             # nach Westen

@@ -109,7 +109,7 @@ def cmd_build(a):
     db = didok.StationDB(Path(a.db)) if a.db and Path(a.db).exists() else None
     meta = json.loads(Path(a.metadata).read_text())["metadata"] if a.metadata else None
     pos = json.loads(Path(a.positions).read_text()) if a.positions else None
-    out, warn = nge.build(spec, db, a.upk, meta, pos)
+    out, warn = nge.build(spec, db, a.upk, meta, pos, layout=a.layout, spacing=a.abstand)
     for w in warn:
         print("Hinweis:", w, file=sys.stderr)
     errs = validate.validate(out)
@@ -206,6 +206,10 @@ def main(argv=None):
     def buildopts(p):
         p.add_argument("--upk", type=float, default=80, help="NGE-Einheiten pro km (Layoutdichte)")
         p.add_argument("--positions", help="positions.json (Handverschiebungen)")
+        p.add_argument("--layout", choices=["geo", "perlschnur"], default="geo",
+                       help="geo = Koordinaten; perlschnur = Zwischenhalte in festem Abstand aufgereiht")
+        p.add_argument("--abstand", type=float, default=256,
+                       help="Abstand der Perlen in NGE-Einheiten (perlschnur)")
 
     p = sub("build", cmd_build, "spec.json -> NGE-JSON")
     p.add_argument("--spec", default="spec.json"); p.add_argument("--db", default=str(DB))

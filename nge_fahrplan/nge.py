@@ -78,12 +78,15 @@ def _tm(t: int | None, lock: bool = False) -> dict:
 
 class Builder:
     def __init__(self, db: StationDB | None = None, metadata: dict | None = None,
-                 upk: float = 80, positions: dict | None = None, min_dist: float = 4 * GRID):
+                 upk: float = 80, positions: dict | None = None, min_dist: float = 4 * GRID,
+                 layout: str = "geo", spacing: float = 8 * GRID):
         self.db = db
         self.meta = metadata or default_metadata()
         self.upk = upk
         self.positions = {k.upper(): v for k, v in (positions or {}).items()}
         self.min_dist = min_dist
+        self.layout = layout
+        self.spacing = spacing
         self.nodes: dict[str, dict] = {}
         self.sections: list[dict] = []
         self.trainruns: list[dict] = []
@@ -138,6 +141,8 @@ class Builder:
         return n
 
     def _place_nodes(self):
+        if self.layout == "perlschnur":
+            return self._place_pearls()
         if self._latlon:
             lats = [v[0] for v in self._latlon.values()]
             lons = [v[1] for v in self._latlon.values()]
@@ -157,6 +162,307 @@ class Builder:
                 n["positionX"], n["positionY"] = -2000, unknown * 4 * GRID
                 unknown += 1
             placed.append((n["positionX"], n["positionY"]))
+
+
+    # ---------- Layout "Perlschnur" ----------
+    def _place_pearls(self):
+        """Schematisches Layout. Knotenbahnhoefe (mind. 3 Nachbarn) behalten ihre
+        geografische Lage, der Massstab wird so gewaehlt, dass die Bahnhoefe dazwischen
+        etwa ``spacing`` auseinander liegen; sie werden gleichmaessig auf der Geraden
+        zwischen den beiden Knoten aufgereiht. Aeste mit offenem Ende werden als
+        Perlschnur in festem Abstand in geografischer Richtung (auf 45 Grad gerundet,
+        waagrecht/senkrecht bevorzugt) gelegt. Fest vorgegebene ``positions`` bleiben."""
+        S = self.spacing
+        by_id = {n["id"]: k for k, n in self.nodes.items()}
+        nb: dict[str, set] = {k: set() for k in self.nodes}
+        lines_at: dict[str, set] = {k: set() for k in self.nodes}
+        for sec in self.sections:
+            a, b = by_id[sec["sourceNodeId"]], by_id[sec["targetNodeId"]]
+            nb[a].add(b); nb[b].add(a)
+            lines_at[a].add(sec["trainrunId"]); lines_at[b].add(sec["trainrunId"])
+        # Geografie in km (fehlende Koordinate: Mittel der Nachbarn)
+        geo: dict[str, tuple] = {}
+        if self._latlon:
+            lats = [v[0] for v in self._latlon.values()]
+            lons = [v[1] for v in self._latlon.values()]
+            lat0, lon0 = (min(lats) + max(lats)) / 2, (min(lons) + max(lons)) / 2
+            klon = 111.32 * math.cos(math.radians(lat0))
+            geo = {k: ((lon - lon0) * klon, -(lat - lat0) * 111.32)
+                   for k, (lat, lon) in self._latlon.items() if k in self.nodes}
+        for _ in range(5):
+            for k in self.nodes:
+                if k not in geo:
+                    g = [geo[x] for x in nb[k] if x in geo]
+                    if g:
+                        geo[k] = (sum(x for x, _ in g) / len(g), sum(y for _, y in g) / len(g))
+        for k in self.nodes:
+            geo.setdefault(k, (0.0, 0.0))
+
+        def size(k):    # grobe Knotengroesse (B, H), wie NGE sie zeichnet
+            return 3 * GRID, max(2 * GRID, len(lines_at[k]) * GRID + TEXT_H)
+
+        def snap(v):
+            return round(v / GRID) * GRID
+
+        # Ketten zwischen Knotenbahnhoefen
+        hubs = {k for k in nb if len(nb[k]) >= 3} | set(self.positions) & set(self.nodes)
+        if not hubs:   # einzelne Linie(n): ein Ende als Anker
+            hubs = {max(self.nodes, key=lambda k: (len(nb[k]) == 1, len(lines_at[k])))}
+        chains, seen = [], set()
+        for h in sorted(hubs):
+            for x in sorted(nb[h]):
+                ch, prev = [h, x], h
+                while x not in hubs and len(nb[x]) == 2:
+                    prev, x = x, next(y for y in nb[x] if y != prev)
+                    ch.append(x)
+                key = frozenset(zip(ch, ch[1:]))
+                if key not in seen:
+                    seen.add(key)
+                    chains.append(ch)
+        inner = [c for c in chains if c[-1] in hubs]
+        leaves = [c for c in chains if c[-1] not in hubs]
+
+        pos: dict[str, tuple] = {}
+        fixed = {k: tuple(map(int, v)) for k, v in self.positions.items() if k in self.nodes}
+        H = sorted(hubs)
+        # Soll-Laenge je Kette: Anzahl Abstaende x S (+ Platz fuer grosse Knoten)
+        ideal: dict[tuple, float] = {}
+        for c in inner:
+            a, b = sorted((c[0], c[-1]))
+            if a == b:
+                continue
+            L = (len(c) - 1) * S + (size(a)[1] + size(b)[1]) / 4
+            ideal[(a, b)] = max(ideal.get((a, b), 0), L)
+        # Express-Abschnitte (ohne Zwischenhalt) nicht kuerzer als die Geografie hergibt
+        chain_r = sorted(L / max(0.3, math.dist(geo[a], geo[b])) for (a, b), L in ideal.items()
+                         if L > 1.5 * S)
+        kg = chain_r[len(chain_r) // 2] if chain_r else 2 * S
+        for (a, b) in ideal:
+            ideal[(a, b)] = max(ideal[(a, b)], 0.7 * kg * math.dist(geo[a], geo[b]))
+        # Graphabstaende zwischen allen Knotenbahnhoefen (Dijkstra)
+        adj: dict[str, list] = {h: [] for h in H}
+        for (a, b), L in ideal.items():
+            adj[a].append((b, L)); adj[b].append((a, L))
+        D = {}
+        for h in H:
+            dist, todo = {h: 0.0}, [(0.0, h)]
+            while todo:
+                todo.sort(); d, u = todo.pop(0)
+                if d > dist.get(u, 1e18):
+                    continue
+                for v, L in adj[u]:
+                    if d + L < dist.get(v, 1e18):
+                        dist[v] = d + L; todo.append((d + L, v))
+            D[h] = dist
+        for (a, b), L in ideal.items():   # jede Kette will ihre eigene Laenge
+            D[a][b] = D[b][a] = max(D[a].get(b, 0), L)
+        # Start: Geografie, Massstab = Median der Soll/Ist-Verhaeltnisse
+        ratios = sorted(L / max(0.3, math.dist(geo[a], geo[b])) for (a, b), L in ideal.items())
+        k0 = ratios[len(ratios) // 2] if ratios else self.upk * 2
+        P = {h: list(fixed.get(h, (geo[h][0] * k0, geo[h][1] * k0))) for h in H}
+        far = max([d for h in H for d in D[h].values()] or [S])
+        for h in H:   # nicht verbundene Teile: geografischer Abstand
+            for g in H:
+                D[h].setdefault(g, math.dist(geo[h], geo[g]) * k0 or far)
+
+        def nearest_dir(vx, vy):
+            ang = math.atan2(vy, vx) / (math.pi / 4)
+            o = min(range(8), key=lambda o: min((o - ang) % 8, (ang - o) % 8) + 0.25 * (o % 2))
+            return [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)][o]
+
+        # Stress-Layout (SMACOF) mit Zug zu 0/45/90 Grad auf den Ketten
+        for it in range(400):
+            new = {}
+            for i in H:
+                if i in fixed:
+                    new[i] = P[i]; continue
+                sx = sy = sw = 0.0
+                for j in H:
+                    if j == i:
+                        continue
+                    d = D[i][j] or S
+                    w = d ** -2 * (5 if (min(i, j), max(i, j)) in ideal else 1)
+                    dx, dy = P[i][0] - P[j][0], P[i][1] - P[j][1]
+                    r = math.hypot(dx, dy) or 1e-6
+                    sx += w * (P[j][0] + d * dx / r); sy += w * (P[j][1] + d * dy / r); sw += w
+                new[i] = [sx / sw, sy / sw] if sw else P[i]
+            P = new
+            if it > 100:   # oktilinear ausrichten
+                alpha = 0.3
+                for (a, b), L in ideal.items():
+                    vx, vy = P[b][0] - P[a][0], P[b][1] - P[a][1]
+                    r = math.hypot(vx, vy) or 1e-6
+                    ux, uy = nearest_dir(vx, vy)
+                    n = math.hypot(ux, uy)
+                    tx, ty = ux / n * r, uy / n * r
+                    cx, cy = (tx - vx) * alpha / 2, (ty - vy) * alpha / 2
+                    if a not in fixed:
+                        P[a] = [P[a][0] - cx, P[a][1] - cy]
+                    if b not in fixed:
+                        P[b] = [P[b][0] + cx, P[b][1] + cy]
+        for h in H:
+            pos[h] = tuple(P[h])
+        # Knotenbahnhoefe auseinanderschieben, wo sie sich ueberlappen
+        for _ in range(200):
+            moved = False
+            for i, a in enumerate(H):
+                for b in H[i + 1:]:
+                    (ax, ay), (bx, by) = pos[a], pos[b]
+                    (aw, ah), (bw, bh) = size(a), size(b)
+                    ox = min(ax + aw, bx + bw) - max(ax, bx) + 2 * GRID
+                    oy = min(ay + ah, by + bh) - max(ay, by) + 2 * GRID
+                    if ox > 0 and oy > 0:
+                        dx, dy = (bx - ax) or 0.1, (by - ay) or 0.1
+                        if ox / abs(dx) < oy / abs(dy):
+                            mx, my = math.copysign(ox / 2, dx), 0
+                        else:
+                            mx, my = 0, math.copysign(oy / 2, dy)
+                        if a not in fixed:
+                            pos[a] = (ax - mx, ay - my)
+                        if b not in fixed:
+                            pos[b] = (bx + mx, by + my)
+                        moved = True
+            if not moved:
+                break
+        pos = {k: (snap(x), snap(y)) for k, (x, y) in pos.items()}
+        used: dict[str, set] = {k: set() for k in self.nodes}
+
+        def octant(dx, dy):
+            return round(math.atan2(dy, dx) / (math.pi / 4)) % 8
+
+        def center(k):
+            w, hh = size(k)
+            return pos[k][0] + w / 2, pos[k][1] + hh / 2
+
+        # Ketten zwischen zwei Knoten: gleichmaessig auf der Geraden; wo das kollidiert
+        # oder kreuzt, seitlich ausgebeult (Platzierung kurze Ketten zuerst)
+        def cross(p1, p2, p3, p4):
+            def o(a, b, c):
+                v = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+                return (v > 0) - (v < 0)
+            if {p1, p2} & {p3, p4}:
+                return False
+            return o(p1, p2, p3) != o(p1, p2, p4) and o(p3, p4, p1) != o(p3, p4, p2)
+
+        def segs():
+            out = set()
+            for a in nb:
+                for b in nb[a]:
+                    if a < b and a in pos and b in pos:
+                        out.add((pos[a], pos[b]))
+            return out
+
+        def free(k, xy):
+            w, hgt = size(k)
+            for j, (px, py) in pos.items():
+                if j == k:
+                    continue
+                pw, ph = size(j)
+                if xy[0] < px + pw + GRID and px < xy[0] + w + GRID and \
+                        xy[1] < py + ph + GRID and py < xy[1] + hgt + GRID:
+                    return False
+            return True
+
+        def badness(ch, pts):
+            sc = sum(not free(k, p) for k, p in zip(ch[1:], pts) if k not in pos)
+            line = [pos[ch[0]]] + pts + ([pos[ch[-1]]] if ch[-1] in pos and len(pts) < len(ch) - 1 else [])
+            ss = segs()
+            sc += sum(cross(a, b, c, d) for a, b in zip(line, line[1:]) for c, d in ss)
+            return sc
+
+        for c in sorted(inner, key=len):
+            if len(c) <= 2 or all(k in pos for k in c[1:-1]):
+                continue
+            (x0, y0), (x1, y1) = center(c[0]), center(c[-1])
+            n = len(c) - 1
+            r = math.hypot(x1 - x0, y1 - y0) or 1
+            px, py = -(y1 - y0) / r, (x1 - x0) / r
+            unit = 3 * GRID + max(size(x)[1] for x in c[1:-1])
+            best = None
+            for m in (0, 1, -1, 2, -2, 3, -3):
+                pts = []
+                for i, k in enumerate(c[1:-1], 1):
+                    t = i / n
+                    # Ausbeulung: an den Enden halb, in der Mitte voll
+                    bump = m * unit * min(1.0, 2 * min(t, 1 - t) + 0.5)
+                    w, hh = size(k)
+                    pts.append((snap(x0 + (x1 - x0) * t + px * bump - w / 2),
+                                snap(y0 + (y1 - y0) * t + py * bump - hh / 2)))
+                sc = badness(c[:-1] + [c[-1]], pts) + 0.3 * abs(m)
+                if best is None or sc < best[0]:
+                    best = (sc, pts)
+                if sc == 0:
+                    break
+            for k, p in zip(c[1:-1], best[1]):
+                pos.setdefault(k, fixed.get(k, p))
+            used[c[0]].add(octant(x1 - x0, y1 - y0)); used[c[-1]].add(octant(x0 - x1, y0 - y1))
+        k_upk = k0
+
+        DIRS = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+        gap = max(GRID, S - 3 * GRID)
+
+        def walk(h, ch, o):
+            dx, dy = DIRS[o]
+            f = 0.75 if dx and dy else 1
+            pts, (x, y), prev = [], pos[h], h
+            for k in ch[1:]:
+                (w0, h0), (w1, h1) = size(prev), size(k)
+                x += 0 if not dx else (w0 + gap) * f if dx > 0 else -(w1 + gap) * f
+                y += 0 if not dy else (h0 + gap) * f if dy > 0 else -(h1 + gap) * f
+                pts.append((snap(x), snap(y)))
+                prev = k
+            return pts
+
+        for ch in sorted(leaves, key=lambda c: -len(c)):   # offene Aeste als Perlschnur
+            h, end = ch[0], ch[-1]
+            gx, gy = geo[end][0] - geo[h][0], geo[end][1] - geo[h][1]
+            ang = math.atan2(gy, gx) / (math.pi / 4) if (gx or gy) else 0
+            cands = sorted(range(8), key=lambda o: min((o - ang) % 8, (ang - o) % 8) + 0.4 * (o % 2))
+            best = None
+            for o in cands:
+                pts = walk(h, ch, o)
+                score = sum(not free(k, p) for k, p in zip(ch[1:], pts))
+                line = [pos[h]] + pts
+                ss = segs()
+                score += sum(cross(a, b, c, d) for a, b in zip(line, line[1:]) for c, d in ss)
+                if best is None or score < best[0]:
+                    best = (score, o, pts)
+                if score == 0:
+                    break
+            _, o, pts = best or (0, cands[0], walk(h, ch, cands[0]))
+            for k, p in zip(ch[1:], pts):
+                pos.setdefault(k, fixed.get(k, p))
+            used[h].add(o)
+        # letzte Kontrolle: ueberlappende Knoten auseinanderschieben (Zwischenhalte zuerst)
+        keys = list(pos)
+        for _ in range(100):
+            moved = False
+            for i, a in enumerate(keys):
+                for b in keys[i + 1:]:
+                    (ax, ay), (bx, by) = pos[a], pos[b]
+                    (aw, ah), (bw, bh) = size(a), size(b)
+                    ox = min(ax + aw, bx + bw) - max(ax, bx) + GRID
+                    oy = min(ay + ah, by + bh) - max(ay, by) + GRID
+                    if ox > 0 and oy > 0:
+                        wa = 0 if a in fixed else (0.2 if a in hubs else 1)
+                        wb = 0 if b in fixed else (0.2 if b in hubs else 1)
+                        if wa + wb == 0:
+                            continue
+                        dx, dy = (bx - ax) or 1, (by - ay) or 1
+                        if ox <= oy:
+                            m, ax_ = math.copysign(ox, dx), 0
+                        else:
+                            m, ax_ = math.copysign(oy, dy), 1
+                        fa, fb = wa / (wa + wb), wb / (wa + wb)
+                        if ax_ == 0:
+                            pos[a] = (snap(ax - m * fa), ay); pos[b] = (snap(bx + m * fb), by)
+                        else:
+                            pos[a] = (ax, snap(ay - m * fa)); pos[b] = (bx, snap(by + m * fb))
+                        moved = True
+            if not moved:
+                break
+        for k, n in self.nodes.items():
+            n["positionX"], n["positionY"] = map(int, pos.get(k, (snap(geo[k][0] * k_upk), snap(geo[k][1] * k_upk))))
 
     # ---------- Linien ----------
     def trainrun(self, spec: dict) -> int:
@@ -331,10 +637,11 @@ class Builder:
 
 
 def build(spec: dict, db: StationDB | None, upk: float = 80, metadata: dict | None = None,
-          positions: dict | None = None) -> tuple[dict, list[str]]:
+          positions: dict | None = None, layout: str = "geo",
+          spacing: float = 8 * GRID) -> tuple[dict, list[str]]:
     pos = dict(spec.get("positions") or {})
     pos.update(positions or {})
-    b = Builder(db, metadata, upk, pos)
+    b = Builder(db, metadata, upk, pos, layout=layout, spacing=spacing)
     for tr in spec["trainruns"]:
         if tr.get("skip"):
             continue
