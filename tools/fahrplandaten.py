@@ -3,7 +3,8 @@
   python tools/fahrplandaten.py <ausgabeordner> [--day JJJJ-MM-TT] [--year JJJJ]
 
 Schritte: fetch (topo-daten, atlas, HRDF) -> stations -> extract (alle Bahnstationen,
-Referenztag) -> stand.json. Jeder Schritt wird protokolliert, ein Fehler bricht nicht
+Referenztag) -> stand.json. Zusaetzlich (unabhaengig, zaehlt nicht fuer den Erfolg des
+Laufs): Zugzahlen je Streckenabschnitt von data.sbb.ch -> zugzahlen*.csv.gz. Jeder Schritt wird protokolliert, ein Fehler bricht nicht
 alles ab: stand.json wird immer geschrieben, weil die Lauf-Logs ausserhalb von GitHub
 nicht lesbar sind.
 """
@@ -113,6 +114,28 @@ if tb.exists():
         "linien_beispiel": sorted({f"{t['cat']} {t['line']}" for t in d["trips"]
                                    if 8504221 in {s['num'] for s in t['stops']}})[:40],
     }
+
+# Zusatz: Zugzahlen (data.sbb.ch). Eigener Bereich in stand.json, damit ein Fehler hier
+# das Hochladen der Fahrplandaten nicht blockiert.
+def zugzahlen():
+    download.fetch_zugzahlen(out)
+    info = {}
+    import gzip
+    for f in sorted(out.glob("zugzahlen*.csv.gz")):
+        with gzip.open(f, "rt", encoding="utf-8") as fh:
+            kopf = fh.readline().strip().split(";")
+            info[f.name] = {"zeilen": sum(1 for _ in fh), "spalten": kopf,
+                            "groesse_mb": round(f.stat().st_size / 1e6, 2)}
+    stand["zugzahlen"] = info
+
+
+t0 = time.time()
+try:
+    zugzahlen()
+    stand["zusatz"] = {"zugzahlen": f"OK ({time.time() - t0:.0f} s)"}
+except BaseException as e:
+    stand["zusatz"] = {"zugzahlen": f"FEHLER {type(e).__name__}: {e}"[:400]}
+
 stand["stationen"] = sum(1 for _ in open(out / "stations.csv")) - 1 if (out / "stations.csv").exists() else 0
 (out / "stand.json").write_text(json.dumps(stand, ensure_ascii=False, indent=1))
 print(json.dumps({k: v for k, v in stand.items() if k != "fehler"}, ensure_ascii=False, indent=1))

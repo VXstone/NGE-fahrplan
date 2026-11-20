@@ -44,7 +44,7 @@ def _stations(a, db: didok.StationDB) -> list[didok.Station]:
 
 
 def cmd_fetch(a):
-    kinds = [k for k in ("didok", "hrdf", "topo", "release") if getattr(a, k)] or ["topo", "didok", "hrdf"]
+    kinds = [k for k in ("didok", "hrdf", "topo", "release", "zugzahlen") if getattr(a, k)] or ["topo", "didok", "hrdf"]
     for k in kinds:
         try:
             download.fetch(k, Path(a.data), year=a.year, url=a.url, force=a.force)
@@ -164,6 +164,8 @@ def main(argv=None):
     p.add_argument("--topo", action="store_true", help="betriebspunkte.json aus VXstone/topo-daten")
     p.add_argument("--release", action="store_true",
                    help="vorbereitete Daten (stations.csv + trips_bahn.json.gz) aus dem Release 'fahrplandaten'")
+    p.add_argument("--zugzahlen", action="store_true",
+                   help="Zugzahlen je Streckenabschnitt (Jahr + Monat, inkl. Gueterzuege) von data.sbb.ch")
     p.add_argument("--year", type=int, default=dt.date.today().year + (dt.date.today().month == 12))
     p.add_argument("--url", help="direkte Download-URL statt CKAN-Suche")
     p.add_argument("--data", default=str(DATA)); p.add_argument("--force", action="store_true")
