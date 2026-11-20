@@ -4,6 +4,8 @@ name: Fahrplandaten
 # VXstone/topo-daten, schneidet alle Bahnfahrten eines Referenztags heraus und
 # legt das Ergebnis ins Release "fahrplandaten":
 #   stations.csv, trips_bahn.json.gz, stand.json
+# sowie die Zugzahlen je Streckenabschnitt von data.sbb.ch (inkl. Gueterzuege):
+#   zugzahlen.csv.gz, zugzahlen_monat.csv.gz
 on:
   schedule:
     - cron: "17 3 * * 6"          # samstags (HRDF erscheint Di/Fr)
@@ -61,5 +63,9 @@ jobs:
           if [ "${{ steps.bauen.outcome }}" = "success" ]; then
             FILES="$FILES out/stations.csv out/trips_bahn.json.gz"
           fi
+          # Zugzahlen unabhaengig vom Fahrplan-Teil hochladen, falls vorhanden
+          for f in out/zugzahlen.csv.gz out/zugzahlen_monat.csv.gz; do
+            if [ -s "$f" ]; then FILES="$FILES $f"; fi
+          done
           gh release upload fahrplandaten $FILES --clobber
           ls -la out

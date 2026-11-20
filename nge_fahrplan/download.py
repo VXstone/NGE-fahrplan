@@ -39,6 +39,16 @@ TOPO_URL = "https://github.com/VXstone/topo-daten/releases/download/vorbereitung
 # vorbereitete Fahrplandaten aus diesem Repo (Workflow .github/workflows/fahrplandaten.yml)
 RELEASE = "https://github.com/VXstone/NGE-fahrplan/releases/download/fahrplandaten/"
 RELEASE_FILES = ["stations.csv", "trips_bahn.json.gz", "stand.json"]
+# optionale Zusatzdateien im Release (fehlen sie, ist das kein Fehler)
+RELEASE_OPTIONAL = ["zugzahlen.csv.gz", "zugzahlen_monat.csv.gz"]
+
+# Zugzahlen von data.sbb.ch (Personen- und Gueterzuege je Streckenabschnitt).
+# data.sbb.ch sperrt manche Umgebungen (Chat-Sandbox) – aus GitHub Actions erreichbar.
+SBB_EXPORT = "https://data.sbb.ch/api/explore/v2.1/catalog/datasets/{}/exports/csv?delimiter=%3B"
+ZUGZAHLEN = {
+    "zugzahlen.csv.gz": "zugzahlen",                # Jahreswerte je Abschnitt
+    "zugzahlen_monat.csv.gz": "zugzahlen_pro_monat",  # DTV je Monat, Gueterzuege separat (DTV_G_*)
+}
 
 UA = {"User-Agent": "nge-fahrplan/0.1 (+https://github.com/OpenRailAssociation/netzgrafik-editor-frontend)"}
 
@@ -109,7 +119,14 @@ def fetch(kind: str, data_dir: Path, year: int | None = None, url: str | None = 
     if kind == "release":
         for f in RELEASE_FILES:
             download((url or RELEASE) + f, data_dir / f, force=True)
+        for f in RELEASE_OPTIONAL:
+            try:
+                download((url or RELEASE) + f, data_dir / f, force=True)
+            except Exception as e:
+                print(f"  {f}: nicht im Release ({type(e).__name__})", file=sys.stderr)
         return data_dir / "trips_bahn.json.gz"
+    if kind == "zugzahlen":
+        return fetch_zugzahlen(data_dir)
     if kind == "topo":
         return download(url or TOPO_URL, data_dir / "betriebspunkte.json", force=True)
     if url is None:
@@ -129,3 +146,27 @@ def fetch(kind: str, data_dir: Path, year: int | None = None, url: str | None = 
         except OSError:
             shutil.copyfile(path, alias)
     return path
+
+
+def fetch_zugzahlen(data_dir: Path) -> Path:
+    """Laedt die beiden Zugzahlen-Datensaetze von data.sbb.ch als gzip-CSV (';').
+
+    zugzahlen.csv.gz       Jahreswerte je Streckenabschnitt (Personen + Gueter)
+    zugzahlen_monat.csv.gz DTV je Abschnitt und Monat, Gueterzuege separat (DTV_G_*)
+    """
+    import gzip
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    for name, slug in ZUGZAHLEN.items():
+        dest = data_dir / name
+        tmp = dest.with_suffix(".part")
+        req = urllib.request.Request(SBB_EXPORT.format(slug), headers=UA)
+        with urllib.request.urlopen(req, timeout=300) as r, gzip.open(tmp, "wb") as f:
+            shutil.copyfileobj(r, f, 1 << 20)
+        with gzip.open(tmp, "rt", encoding="utf-8") as f:
+            zeilen = sum(1 for _ in f) - 1
+        if zeilen < 10:
+            raise RuntimeError(f"{slug}: nur {zeilen} Zeilen – Export unvollstaendig?")
+        os.replace(tmp, dest)
+        print(f"  {name}: {zeilen} Zeilen", file=sys.stderr)
+    return data_dir / "zugzahlen_monat.csv.gz"

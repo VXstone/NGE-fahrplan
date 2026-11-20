@@ -31,6 +31,12 @@ Betriebspunkte aus topo-daten und legt ins Release **`fahrplandaten`**:
 | `stations.csv` | Stationsdatenbank (atlas + topo-daten + HRDF) |
 | `trips_bahn.json.gz` | alle Bahnfahrten des Referenztags (Dienstag Mitte Fahrplanjahr), Halte an allen Stationen |
 | `stand.json` | Zeitpunkt, Quellen, Ergebnis jedes Schritts, Zahlen und Stichproben |
+| `zugzahlen.csv.gz` | data.sbb.ch «Züge pro Streckenabschnitt» (Jahreswerte, Personen + Güter), `;`-getrennt |
+| `zugzahlen_monat.csv.gz` | data.sbb.ch «Züge pro Streckenabschnitt und Monat», Güterzüge separat (`DTV_G_*`) |
+
+Die Zugzahlen sind ein Zusatz: schlägt ihr Download fehl, werden die Fahrplandaten
+trotzdem aktualisiert (Ergebnis unter `zusatz` in `stand.json`). Einzeln holen:
+`python -m nge_fahrplan fetch --zugzahlen` (braucht Zugang zu data.sbb.ch).
 
 Damit braucht niemand mehr das 450-MB-ZIP:
 
