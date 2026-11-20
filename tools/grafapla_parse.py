@@ -21,8 +21,15 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-FARBE = sys.argv[sys.argv.index("--farbe") + 1] if "--farbe" in sys.argv else "3b65a3"
+FARBEN = {"G": "3b65a3", "R": "af3734", "L": "2b7b73"}   # Güter, Reise, Lok/Leer
+FARBE = "3b65a3"
 RGB = tuple(int(FARBE[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def set_farbe(f):
+    global FARBE, RGB
+    FARBE = f
+    RGB = tuple(int(f[i:i + 2], 16) / 255 for i in (0, 2, 4))
 
 
 def same_col(c):
@@ -98,12 +105,17 @@ def labels(p):
             txt = " ".join(s["text"] for s in sp).split()
             if not txt:
                 continue
-            m = re.fullmatch(r"(\d{4,6})(mod|[A-Z]{0,2})'?", txt[0])
-            if not m:
+            m = re.fullmatch(r"(\d{2,6})(mod|[A-Z]{0,2})'?", txt[0])
+            if not m or len(txt) < 2 or not re.fullmatch(r"[+-]?\d{2,4}\*?", txt[1]):
                 continue
             x0, y0, x1, y1 = ln["bbox"]
             vp = txt[1] if len(txt) > 1 else ""
-            out.add((m.group(1) + m.group(2), vp, round((x0 + x1) / 2, 1), round((y0 + y1) / 2, 1),
+            ox, oy = sp[0]["origin"]
+            L = (x1 - x0) / max(0.5, abs(ln["dir"][0]))
+            # Mitte der Grundlinie der Zugnummer (erstes Wort), dort liegt die Linie knapp darunter
+            w0 = (sp[0]["bbox"][2] - sp[0]["bbox"][0]) * len(txt[0]) / max(1, len(sp[0]["text"].strip()))
+            mx, my = ox + ln["dir"][0] * w0 / 2, oy + ln["dir"][1] * w0 / 2
+            out.add((m.group(1) + m.group(2), vp, round(mx, 1), round(my, 1),
                      round(ln["dir"][0], 3), round(ln["dir"][1], 3)))
     return list(out)
 
@@ -127,7 +139,7 @@ def assign(labs, segs):
             if t < -5 or t > L + 5:
                 continue
             dist = abs((cx - ax) * uy - (cy - ay) * ux)
-            if dist < 12 and (best is None or dist < best[0]):
+            if dist < 5 and (best is None or dist < best[0]):
                 best = (dist, i)
         if best:
             res.setdefault(best[1], (zug, vp))
@@ -207,17 +219,35 @@ def parse_pdf(fn, abbr_name):
                             pts.append([st, t, t])
             if len(pts) < 2:
                 continue
-            trains.append(dict(zug=zug, vp=vp, linie=Counter(segs[i][4] for i in ch).most_common(1)[0][0],
+            trains.append(dict(zug=zug, vp=vp, votes=names.most_common(1)[0][1] if names else 0, linie=Counter(segs[i][4] for i in ch).most_common(1)[0][0],
                                halte=[[s, round(a, 1), round(b, 1)] for s, a, b in pts],
                                seite=pno, rand=(min(y2t(segs[i][1]) for i in ch) < tmin + 1
                                                 or max(y2t(segs[i][3]) for i in ch) > tmax - 1)))
     # gleiche Zugnummer über Seiten / Teilstücke zusammenführen
     merged = defaultdict(lambda: dict(vp=Counter(), linie=Counter(), pts={}))
     anon = []
+    byz = defaultdict(list)
     for t in trains:
-        if not t["zug"]:
-            anon.append(t)
-            continue
+        (byz[t["zug"]] if t["zug"] else anon).append(t)
+    keep = []
+    for z, ts in byz.items():
+        ts.sort(key=lambda t: -t["votes"])
+        grp = [ts[0]]
+        def ends(t):
+            return [(t["halte"][0][0], t["halte"][0][1] % 1440), (t["halte"][-1][0], t["halte"][-1][2] % 1440)]
+        changed = True
+        while changed:
+            changed = False
+            for t in ts:
+                if any(t is g for g in grp):
+                    continue
+                if any(a == b and min(abs(ta - tb), 1440 - abs(ta - tb)) <= 2.5
+                       for g in grp for a, ta in ends(g) for b, tb in ends(t)):
+                    grp.append(t)
+                    changed = True
+        keep += grp
+        anon += [t for t in ts if not any(t is g for g in grp)]
+    for t in keep:
         m = merged[t["zug"]]
         m["vp"][t["vp"]] += 1
         m["linie"][t["linie"]] += 1
@@ -228,8 +258,30 @@ def parse_pdf(fn, abbr_name):
     out = []
     for z, m in merged.items():
         h = sorted(m["pts"].values(), key=lambda x: x[1])
-        out.append(dict(zug=z, vp=m["vp"].most_common(1)[0][0], linie=m["linie"].most_common(1)[0][0],
-                        halte=[[s, round(a, 1), round(b, 1), abbr_name.get(s, "")] for s, a, b in h]))
+        # über Mitternacht: an der grössten zeitlichen Lücke aufschneiden
+        if len(h) > 1:
+            gaps = [((h[(i + 1) % len(h)][1] - h[i][1]) % 1440, i) for i in range(len(h))]
+            g, i = max(gaps)
+            h = h[i + 1:] + h[:i + 1]
+            base, add, last = h[0][1], 0, None
+            hh = []
+            for s_, a, b in h:
+                if last is not None and a + add < last - 1:
+                    add += 1440
+                a2, b2 = a + add, b + add
+                if b2 < a2:
+                    b2 += 1440
+                hh.append((s_, a2, b2))
+                last = a2
+            h = hh
+        vps = [v for v, _ in m["vp"].most_common()]
+        vp = next((v for v in vps if v and not v.startswith(("+", "-"))), vps[0] if vps else "")
+        if h and h[0][1] >= 1440 and vp.startswith("+") is False and any(v.startswith("+") for v in vps):
+            vp = next(v for v in vps if v.startswith("+"))
+        if h and h[0][1] >= 1440:
+            h = [(s_, a - 1440, b - 1440) for s_, a, b in h]
+        out.append(dict(zug=z, vp=vp, vps=dict(m["vp"]), linie=m["linie"].most_common(1)[0][0],
+                        halte=[[s, round(a, 1), round(b, 1)] for s, a, b in h]))
     return dict(feld=Path(fn).stem[1:], titel=titel, zuege=out, ohne_nummer=len(anon))
 
 
@@ -243,11 +295,18 @@ if __name__ == "__main__":
                 abbr.setdefault(r["abbr"], r["name"])
     res = []
     for fn in sorted(Path(sys.argv[1]).glob("G*.pdf")):
-        try:
-            r = parse_pdf(fn, abbr)
-        except Exception as e:  # noqa
-            r = dict(feld=fn.stem[1:], fehler=f"{type(e).__name__}: {e}")
+        r = dict(feld=fn.stem[1:], kat={})
+        for kat, farbe in FARBEN.items():
+            set_farbe(farbe)
+            try:
+                x = parse_pdf(fn, abbr)
+                r["titel"] = x["titel"]
+                r["kat"][kat] = dict(zuege=x["zuege"], ohne_nummer=x["ohne_nummer"])
+            except Exception as e:  # noqa
+                r.setdefault("fehler", {})[kat] = f"{type(e).__name__}: {e}"
         res.append(r)
-        print(f"{r['feld']:>5} {len(r.get('zuege', [])):4} Züge, {r.get('ohne_nummer', '-')} ohne Nr  {r.get('titel', r.get('fehler', ''))[:60]}",
-              file=sys.stderr)
-    json.dump(res, open(sys.argv[2], "w"), ensure_ascii=False)
+        print(r["feld"], {k: len(v["zuege"]) for k, v in r["kat"].items()}, r.get("titel", "")[:50], file=sys.stderr)
+    import gzip
+    op = gzip.open if sys.argv[2].endswith(".gz") else open
+    with op(sys.argv[2], "wt", encoding="utf-8") as f:
+        json.dump(dict(quelle="tp-info.ch grafische Fahrpläne (SBB Infrastruktur)", felder=res), f, ensure_ascii=False)
