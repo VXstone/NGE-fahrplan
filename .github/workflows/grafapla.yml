@@ -1,0 +1,47 @@
+name: Grafische Fahrplaene
+
+# Holt die grafischen Fahrplaene (Bildfahrplaene) eines Fahrplanjahres von
+# tp-info.ch und legt sie als ZIP ins Release "grafapla-<Jahr>".
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: "Fahrplanjahr"
+        required: false
+        default: "2026"
+  push:
+    branches: [grafapla]
+    paths:
+      - ".github/workflows/grafapla.yml"
+      - "tools/grafapla.py"
+
+permissions:
+  contents: write
+
+jobs:
+  holen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        year: ["${{ inputs.year || '2026' }}"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: PDFs holen
+        run: python tools/grafapla.py out --year ${{ matrix.year }}
+      - name: Release aktualisieren
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          Y: ${{ matrix.year }}
+        run: |
+          ls -la out || true
+          gh release view grafapla-$Y >/dev/null 2>&1 || \
+            gh release create grafapla-$Y --target "$GITHUB_SHA" --title "Grafische Fahrplaene $Y (tp-info.ch)" \
+              --notes "Automatisch vom Workflow 'Grafische Fahrplaene'. Quelle: tp-info.ch (SBB Infrastruktur, Fahrplan & Netzdesign)."
+          for f in out/grafapla_$Y.json out/grafapla_$Y.zip; do
+            if [ -s "$f" ]; then gh release upload grafapla-$Y "$f" --clobber; fi
+          done
