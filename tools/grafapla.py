@@ -69,9 +69,8 @@ for pg in range(0, 200):
     neu = 0
     for m in re.finditer(rf"/grafapla/{y}/([^\"'/?#]+\.pdf)", html):
         n = m.group(1)
-        if n not in names:
-            names.add(n)
-            neu += 1
+        neu += 1          # Links auf der Seite (auch schon bekannte)
+        names.add(n)
     for m in re.finditer(r">\s*(G[0-9A-Za-z_-]+)\s*<.*?>\s*([^<>]{3,120}?)\s*<", html, re.S):
         titel.setdefault(m.group(1), m.group(2).strip())
     leer = leer + 1 if neu == 0 else 0
