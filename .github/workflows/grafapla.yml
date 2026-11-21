@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        year: ["${{ inputs.year || '2026' }}"]
+        year: ${{ fromJSON(inputs.year && format('["{0}"]', inputs.year) || '["2026","2025"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
