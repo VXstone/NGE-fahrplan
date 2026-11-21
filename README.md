@@ -191,3 +191,13 @@ und die Minuten nach dem Laden unveraendert bleiben (Node 20+, Chrome noetig).
 Code: MIT. `nge_fahrplan/metadata_default.json` stammt aus netzgrafik-editor-frontend
 (Apache-2.0, © SBB / OpenRail Association). Daten: opendata.swiss, Nutzungsbedingung
 „Quellenangabe" (opentransportdata.swiss).
+
+## Grafische Fahrpläne (Güterzüge mit Minutenlage)
+
+Workflow `Grafische Fahrplaene` holt die grafischen Fahrpläne eines Fahrplanjahres und liest die Züge aus
+(`tools/grafapla_parse.py`: blau Güterzüge 4xxxx–6xxxx, rot Reisezüge, grün Lok/Leer) → Release `grafapla-<Jahr>`,
+Datei `grafapla_<Jahr>_zuege.json.gz`. Quelle: grafische Fahrpläne, veröffentlicht von der Systemaufgabe
+Kundeninformation (SKI) auf [oev-info.ch](https://www.oev-info.ch/de/fahrplan-aktuell/grafische-fahrplaene), erstellt
+von SBB Infrastruktur (Fahrplan & Netzdesign) bzw. den jeweiligen Bahnen. **Lizenz bzw. Nutzungsbedingungen ungeklärt**:
+die Original-PDFs werden darum nicht im Release weitergegeben (nur kurz als Lauf-Artefakt), die ausgelesenen Daten
+sind ohne Gewähr. Zeichenerklärung (Verkehrsperioden): `tools/grafapla_vp.py`.

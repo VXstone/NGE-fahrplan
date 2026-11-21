@@ -13,8 +13,11 @@ import argparse, io, json, re, sys, time, urllib.request, zipfile, concurrent.fu
 from pathlib import Path
 
 UA = {"User-Agent": "nge-fahrplan/0.1 (+https://github.com/VXstone/NGE-fahrplan)"}
-BASES = ["https://www.tp-info.ch/sites/default/files/grafapla/{y}/",
+BASES = ["https://www.oev-info.ch/sites/default/files/grafapla/{y}/",
+         "https://www.tp-info.ch/sites/default/files/grafapla/{y}/",
          "https://tp-info.ch/sites/default/files/grafapla/{y}/"]
+# Liste aller Bahnen (SBB und übrige, z. B. Blonay–Chamby): Seitenweise, 25 Einträge je Seite
+LISTE = "https://www.oev-info.ch/de/fahrplan-aktuell/grafische-fahrplaene?page={p}"
 
 ap = argparse.ArgumentParser(); ap.add_argument("out"); ap.add_argument("--year", type=int, default=2026)
 a = ap.parse_args(); out = Path(a.out); out.mkdir(parents=True, exist_ok=True); y = a.year
@@ -54,8 +57,35 @@ for vz in ("GZVJ.xlsx", "GZVJ.pdf"):
     for m in re.finditer(rf"/{y}/(G[0-9A-Za-z_]+)\.pdf", txt):
         names.add(m.group(1) + ".pdf")
 log["aus_verzeichnis"] = len(names)
+# 1b) Listenseiten von oev-info.ch durchblättern (enthält auch die Nicht-SBB-Strecken)
+titel = {}
+leer = 0
+for pg in range(0, 200):
+    try:
+        html = get(LISTE.format(p=pg)).decode("utf-8", "ignore")
+    except Exception as e:  # noqa
+        log["fehler"].append(f"Liste Seite {pg}: {type(e).__name__}")
+        break
+    neu = 0
+    for m in re.finditer(rf"/grafapla/{y}/([^\"'/?#]+\.pdf)", html):
+        n = m.group(1)
+        neu += 1          # Links auf der Seite (auch schon bekannte)
+        names.add(n)
+    for m in re.finditer(r">\s*(G[0-9A-Za-z_-]+)\s*<.*?>\s*([^<>]{3,120}?)\s*<", html, re.S):
+        titel.setdefault(m.group(1), m.group(2).strip())
+    leer = leer + 1 if neu == 0 else 0
+    if leer >= 3:
+        break
+log["aus_liste"] = len(names)
+log["listenseiten"] = pg + 1
 # 2) Durchprobieren
 names |= {f"G{n}.pdf" for n in range(100, 1000)} | {"G00d.pdf", "G00f.pdf", "G00i.pdf"}
+# Bahnen, deren Fahrpläne unter ihrem Kürzel liegen (z. B. GBOB.pdf, GRhB1.pdf)
+BAHNEN = ["AB", "AOMC", "ASD", "ASM", "AVA", "BAM", "BC", "BDWM", "BLM", "BLS", "BLT", "BOB", "BRB", "CJ", "DFB", "FART",
+          "FB", "FLP", "FW", "GGB", "JB", "LEB", "MBC", "MGB", "MIB", "MOB", "MVR", "NStCM", "NSTCM", "OeBB", "PB", "RB",
+          "RBS", "RhB", "RHB", "SBB", "SOB", "STB", "SZU", "TB", "TMR", "TPC", "TPF", "TRAVYS", "TRN", "TRA", "WAB",
+          "WB", "WSB", "zb", "ZB", "ZSG", "TL", "SGV", "VZO", "SMC", "SNB", "UeBB", "GoldenPass", "BLSN"]
+names |= {f"G{b}{n}.pdf" for b in BAHNEN for n in ["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]}
 
 
 def fetch(name):
