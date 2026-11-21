@@ -80,6 +80,12 @@ log["aus_liste"] = len(names)
 log["listenseiten"] = pg + 1
 # 2) Durchprobieren
 names |= {f"G{n}.pdf" for n in range(100, 1000)} | {"G00d.pdf", "G00f.pdf", "G00i.pdf"}
+# Bahnen, deren Fahrpläne unter ihrem Kürzel liegen (z. B. GBOB.pdf, GRhB1.pdf)
+BAHNEN = ["AB", "AOMC", "ASD", "ASM", "AVA", "BAM", "BC", "BDWM", "BLM", "BLS", "BLT", "BOB", "BRB", "CJ", "DFB", "FART",
+          "FB", "FLP", "FW", "GGB", "JB", "LEB", "MBC", "MGB", "MIB", "MOB", "MVR", "NStCM", "NSTCM", "OeBB", "PB", "RB",
+          "RBS", "RhB", "RHB", "SBB", "SOB", "STB", "SZU", "TB", "TMR", "TPC", "TPF", "TRAVYS", "TRN", "TRA", "WAB",
+          "WB", "WSB", "zb", "ZB", "ZSG", "TL", "SGV", "VZO", "SMC", "SNB", "UeBB", "GoldenPass", "BLSN"]
+names |= {f"G{b}{n}.pdf" for b in BAHNEN for n in ["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]}
 
 
 def fetch(name):

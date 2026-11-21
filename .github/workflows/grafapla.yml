@@ -38,6 +38,12 @@ jobs:
           pip install pymupdf
           mkdir -p out/pdf && cd out/pdf && unzip -q ../grafapla_${{ matrix.year }}.zip && cd ../..
           python tools/grafapla_parse.py out/pdf out/grafapla_${{ matrix.year }}_zuege.json.gz
+      # Original-PDFs nicht öffentlich weitergeben (keine offene Lizenz): nur kurz als Lauf-Artefakt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grafapla-${{ matrix.year }}-pdf
+          path: out/grafapla_${{ matrix.year }}.zip
+          retention-days: 3
       - name: Release aktualisieren
         if: always()
         env:
@@ -48,6 +54,6 @@ jobs:
           gh release view grafapla-$Y >/dev/null 2>&1 || \
             gh release create grafapla-$Y --target "$GITHUB_SHA" --title "Grafische Fahrplaene $Y (tp-info.ch)" \
               --notes "Automatisch vom Workflow 'Grafische Fahrplaene'. Quelle: tp-info.ch (SBB Infrastruktur, Fahrplan & Netzdesign)."
-          for f in out/grafapla_$Y.json out/grafapla_$Y.zip out/grafapla_${Y}_zuege.json.gz; do
+          for f in out/grafapla_$Y.json out/grafapla_${Y}_zuege.json.gz; do
             if [ -s "$f" ]; then gh release upload grafapla-$Y "$f" --clobber; fi
           done
