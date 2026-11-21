@@ -10,7 +10,7 @@ on:
         required: false
         default: "2026"
   push:
-    branches: [grafapla]
+    branches: [grafapla, grafapla-alle]
     paths:
       - ".github/workflows/grafapla.yml"
       - "tools/grafapla.py"
