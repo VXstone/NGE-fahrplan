@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-FARBEN = {"G": "3b65a3", "R": "af3734", "L": "2b7b73"}   # Güter, Reise, Lok/Leer
+FARBEN = {"G": "3b65a3", "R": "af3734", "L": "2b7b73", "V": "7a4db2"}   # Güter, Reise, Lok/Leer, violett (6xxxx, z. B. Lötschberg)
 FARBE = "3b65a3"
 RGB = tuple(int(FARBE[i:i + 2], 16) / 255 for i in (0, 2, 4))
 
@@ -317,6 +317,11 @@ if __name__ == "__main__":
                 r["kat"][kat] = dict(zuege=x["zuege"], ohne_nummer=x["ohne_nummer"])
             except Exception as e:  # noqa
                 r.setdefault("fehler", {})[kat] = f"{type(e).__name__}: {e}"
+        # violette Linien (Nummern 6xxxx, u. a. im Lötschberg-Basistunnel) als Güterzüge führen
+        v = r["kat"].pop("V", None)
+        if v and "G" in r["kat"]:
+            r["kat"]["G"]["zuege"] += v["zuege"]
+            r["kat"]["G"]["ohne_nummer"] += v["ohne_nummer"]
         res.append(r)
         print(r["feld"], {k: len(v["zuege"]) for k, v in r["kat"].items()}, r.get("titel", "")[:50], file=sys.stderr)
     import gzip
