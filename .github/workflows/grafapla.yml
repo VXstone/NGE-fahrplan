@@ -53,7 +53,7 @@ jobs:
           ls -la out || true
           gh release view grafapla-$Y >/dev/null 2>&1 || \
             gh release create grafapla-$Y --target "$GITHUB_SHA" --title "Grafische Fahrplaene $Y (tp-info.ch)" \
-              --notes "Automatisch vom Workflow 'Grafische Fahrplaene'. Quelle: tp-info.ch (SBB Infrastruktur, Fahrplan & Netzdesign)."
+              --notes "Automatisch vom Workflow 'Grafische Fahrplaene'. Quelle: grafische Fahrpläne, Systemaufgabe Kundeninformation (SKI), oev-info.ch (SBB Infrastruktur bzw. die Bahnen). Lizenz ungeklärt, Daten ohne Gewähr."
           for f in out/grafapla_$Y.json out/grafapla_${Y}_zuege.json.gz; do
             if [ -s "$f" ]; then gh release upload grafapla-$Y "$f" --clobber; fi
           done
