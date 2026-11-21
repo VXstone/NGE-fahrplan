@@ -10,11 +10,12 @@ on:
         required: false
         default: "2026"
   push:
-    branches: [grafapla, grafapla-alle]
+    branches: [grafapla, grafapla-alle, grafapla-rhb]
     paths:
       - ".github/workflows/grafapla.yml"
       - "tools/grafapla.py"
       - "tools/grafapla_parse.py"
+      - "tools/grafapla_rhb.py"
 
 permissions:
   contents: write
@@ -37,7 +38,8 @@ jobs:
         run: |
           pip install pymupdf
           mkdir -p out/pdf && cd out/pdf && unzip -q ../grafapla_${{ matrix.year }}.zip && cd ../..
-          python tools/grafapla_parse.py out/pdf out/grafapla_${{ matrix.year }}_zuege.json.gz
+          curl -sSL -o out/stations.csv https://github.com/VXstone/NGE-fahrplan/releases/download/fahrplandaten/stations.csv
+          python tools/grafapla_parse.py out/pdf out/grafapla_${{ matrix.year }}_zuege.json.gz --stations out/stations.csv
       # Original-PDFs nicht öffentlich weitergeben (keine offene Lizenz): nur kurz als Lauf-Artefakt
       - uses: actions/upload-artifact@v4
         with:

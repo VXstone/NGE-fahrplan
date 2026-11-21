@@ -293,8 +293,21 @@ if __name__ == "__main__":
         for r in csv.DictReader(open(sc, encoding="utf-8")):
             if r["abbr"]:
                 abbr.setdefault(r["abbr"], r["name"])
+    sys.path.insert(0, str(Path(__file__).parent))
+    import grafapla_rhb
+    st_csv = sys.argv[sys.argv.index("--stations") + 1] if "--stations" in sys.argv else None
+    nm = grafapla_rhb.name_matcher(st_csv) if st_csv and Path(st_csv).exists() else None
     res = []
     for fn in sorted(Path(sys.argv[1]).glob("G*.pdf")):
+        # Bahnen mit eigenem Layout
+        if fn.name.startswith("GRhB") and nm:
+            try:
+                r = grafapla_rhb.parse_pdf(fn, nm)
+            except Exception as e:  # noqa
+                r = dict(feld=fn.stem[1:], kat={}, fehler={"RhB": f"{type(e).__name__}: {e}"})
+            res.append(r)
+            print(r["feld"], {k: len(v["zuege"]) for k, v in r["kat"].items()}, "(RhB)", file=sys.stderr)
+            continue
         r = dict(feld=fn.stem[1:], kat={})
         for kat, farbe in FARBEN.items():
             set_farbe(farbe)
