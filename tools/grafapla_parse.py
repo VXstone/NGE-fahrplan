@@ -79,8 +79,19 @@ def page_axes(p, words):
     return (lambda y: a + b * y), stx, (min(m for _, m in pts), max(m for _, m in pts))
 
 
-def segments(p):
-    segs = set()
+def segments(p, y2t=None):
+    """Farbige Liniensegmente der Seite, nach Zeit orientiert, ohne Doppel.
+    Gibt (segs, zuege, folge) zurück: zuege[i] = Anzahl Züge auf Segment i. Jeder Strich ist im PDF
+    mehrfach gezeichnet (Grundfaktor, meist 2); Züge mit identischem Laufweg an dieser Stelle (z. B.
+    gleiche Trasse an verschiedenen Verkehrstagen, Nummern übereinander) vervielfachen ihn.
+    folge[i] = Segment, das im PDF direkt nach i gezeichnet ist und dort anschliesst: Die Züge sind
+    der Reihe nach gezeichnet (Strich, Punkt am Betriebspunkt, Strich …), das zeigt an Verzweigungen,
+    welcher Strich zum selben Zug gehört.
+    sprung[i] = j: im PDF direkt nach i gezeichnet, schliesst nicht an, beginnt aber höchstens 5′
+    später und ≤ 80 pt weiter in gleicher Fahrtrichtung – der Zug durchfährt ein nicht gezeichnetes
+    Stück (z. B. Olten–Dänken RB: DKW → DK). Nur mit y2t."""
+    cnt = Counter()
+    strom = []
     for dr in p.get_drawings():
         if not same_col(dr.get("color")):
             continue
@@ -93,8 +104,33 @@ def segments(p):
                 continue
             if (a.y, a.x) > (b.y, b.x):  # nach Zeit orientieren
                 a, b = b, a
-            segs.add((round(a.x, 1), round(a.y, 1), round(b.x, 1), round(b.y, 1), art))
-    return sorted(segs, key=lambda s: (s[1], s[0]))
+            k = (round(a.x, 1), round(a.y, 1), round(b.x, 1), round(b.y, 1), art)
+            cnt[k] += 1
+            strom.append(k)
+    segs = sorted(cnt, key=lambda s: (s[1], s[0]))
+    pos = {s: i for i, s in enumerate(segs)}
+    votes = defaultdict(Counter)
+    for u, v in zip(strom, strom[1:]):
+        if u[2:4] == v[:2]:
+            votes[pos[u]][pos[v]] += 1
+        elif v[2:4] == u[:2]:
+            votes[pos[v]][pos[u]] += 1
+    folge = {i: c.most_common(1)[0][0] for i, c in votes.items()}
+    sv = defaultdict(Counter)
+    if y2t:
+        for a, b in zip(strom, strom[1:]):
+            for u, v in ((a, b), (b, a)):  # Züge sind teils gegen die Zeit gezeichnet
+                if u[2:4] == v[:2] or u[2] == u[0] or v[2] == v[0]:
+                    continue
+                ru, rv, rj = u[2] > u[0], v[2] > v[0], v[0] > u[2]
+                dt = y2t(v[1]) - y2t(u[3])
+                if ru == rv == rj and v[0] != u[2] and abs(v[0] - u[2]) <= 80 and 0 <= dt <= 5:
+                    sv[pos[u]][pos[v]] += 1
+    sprung = {i: c.most_common(1)[0][0] for i, c in sv.items()}
+    lang = Counter(v for k, v in cnt.items() if math.hypot(k[2] - k[0], k[3] - k[1]) >= 5)
+    tot = sum(lang.values())
+    base = min((m for m, n in lang.items() if n >= 0.2 * tot), default=1)
+    return segs, [max(1, round(cnt[s] / base)) for s in segs], folge, sprung
 
 
 def labels(p):
@@ -120,20 +156,36 @@ def labels(p):
     return list(out)
 
 
-def assign(labs, segs):
-    """Zugnummer -> Segment: gleiche Neigung, kleiner Normalabstand.
-    Erst nur Segmente, neben denen die Nummer steht; danach (z. B. Bergstrecke Kandersteg–Brig
-    mit kurzen, steilen Segmenten) auch solche, in deren Verlängerung sie steht."""
-    res = _assign(labs, segs, 5, 5)
-    done = set(res.values())
-    rest = [l for l in labs if (l[0], l[1]) not in done]
-    weit = {i: v for i, v in _assign(rest, segs, 60, 3).items() if i not in res}
-    return res, weit
+def assign(labs, segs, zuege=None):
+    """Zugnummer -> Segment: gleiche Neigung, kleiner Normalabstand. Ergebnis {seg: [(zug, vp), …]},
+    nächste Nummer zuerst, dazu {seg: Durchgang}; je Segment höchstens so viele Nummern, wie Züge darauf liegen (gestapelte
+    Nummern gleicher Trasse).
+    1. Durchgang: Segmente, neben denen die Nummer steht.
+    2. Durchgang (Bergstrecke Kandersteg–Brig, kurze steile Segmente): Nummer in der Verlängerung, eng.
+    3. Durchgang (Ausfahrten aus Rangierbahnhöfen, z. B. Lausanne-Triage LTF→LTO): Nummer knapp vor
+       einem kurzen Stummel, etwas weiter weg."""
+    cap = list(zuege) if zuege else [1] * len(segs)
+    res = defaultdict(list)
+    durch = {}
+    rest = list(labs)
+    for n, (over, maxd) in enumerate(((5, 5), (60, 3), (15, 4.5)), 1):
+        cand = sorted(_cands(rest, segs, over, maxd))
+        done = set()
+        for dist, k, i in cand:
+            lab = rest[k][:2]
+            if k in done or len(res[i]) >= cap[i] or lab in res[i]:
+                continue
+            res[i].append(lab)
+            durch.setdefault(i, n)
+            done.add(k)
+        rest = [l for k, l in enumerate(rest) if k not in done]
+    return dict(res), durch
 
 
-def _assign(labs, segs, over, maxd):
-    res = {}
-    for zug, vp, cx, cy, dx, dy in labs:
+def _cands(labs, segs, over, maxd):
+    """(Abstand, Nummer-Index, Segment) je Nummer: nur das nächste passende Segment."""
+    out = []
+    for k, (zug, vp, cx, cy, dx, dy) in enumerate(labs):
         best = None
         for i, (ax, ay, bx, by, _) in enumerate(segs):
             sx, sy = bx - ax, by - ay
@@ -150,39 +202,62 @@ def _assign(labs, segs, over, maxd):
                 continue
             dist = abs((cx - ax) * uy - (cy - ay) * ux)
             if dist < maxd and (best is None or dist < best[0]):
-                best = (dist, i)
+                best = (dist, k, i)
         if best:
-            res.setdefault(best[1], (zug, vp))
-    return res
+            out.append(best)
+    return out
 
 
-def chains(segs):
-    """Segmente zu Linienzügen verketten (Ende = Anfang, gleiche Fahrtrichtung)."""
+def chains(segs, lab=None, folge=None, sprung=None):
+    """Segmente zu Linienzügen verketten (Ende = Anfang, gleiche Fahrtrichtung).
+    Beginnen an einem Punkt mehrere Segmente (z. B. Genève–Coppet: S-Bahn und IR zur gleichen Minute),
+    wird gewählt: das im PDF direkt danach gezeichnete (siehe segments), sonst gleiche Nummer wie der
+    Linienzug bisher, sonst ein Segment ohne fremde Nummer, sonst die geringste Richtungsänderung.
+    Endet der Linienzug, geht er über sprung (siehe segments) weiter, falls vorhanden."""
+    lab = lab or {}
+    folge = folge or {}
+    sprung = sprung or {}
     starts = defaultdict(list)
     for i, s in enumerate(segs):
         starts[(s[0], s[1])].append(i)
     used, out = set(), []
     has_pred = {j for s in segs for j in starts.get((s[2], s[3]), [])}
     order = [i for i in range(len(segs)) if i not in has_pred] + list(range(len(segs)))
+
+    def neigung(i):
+        s = segs[i]
+        return math.atan2(s[3] - s[1], s[2] - s[0])
+
     for i in order:
         if i in used:
             continue
         ch, cur, sgn = [i], i, 0
         used.add(i)
+        name = lab[i][0][0] if i in lab else None
         while True:
             s = segs[cur]
             if s[2] != s[0]:
                 sgn = 1 if s[2] > s[0] else -1
             nxt = [j for j in starts.get((s[2], s[3]), []) if j not in used]
+            if not nxt and sprung.get(cur) is not None and sprung[cur] not in used:
+                nxt = [sprung[cur]]
             if not nxt:
                 break
             pick = [j for j in nxt if segs[j][2] == segs[j][0] or sgn == 0
                     or (segs[j][2] > segs[j][0]) == (sgn > 0)]
             if not pick:
                 break
+            if len(pick) > 1:
+                a = neigung(cur)
+                pick.sort(key=lambda j: (folge.get(cur) != j,
+                                         0 if name and j in lab and any(n[0] == name for n in lab[j]) else
+                                         1 if j not in lab else 2,
+                                         abs(math.remainder(neigung(j) - a, 2 * math.pi)) if segs[j][2] != segs[j][0] else 0))
             cur = pick[0]
             used.add(cur)
             ch.append(cur)
+            if name is None and cur in lab:
+                name = lab[cur][0][0]
         out.append(ch)
     return out
 
@@ -206,16 +281,20 @@ def parse_pdf(fn, abbr_name):
         if sig in seen_pages:  # Seiten sind doppelt gedruckt
             continue
         seen_pages.add(sig)
-        segs = segments(p)
-        lab, lab_weit = assign(labels(p), segs)
+        segs, nz, folge, sprung = segments(p, y2t)
+        lab, durch = assign(labels(p), segs, nz)
 
         def x2st(x):
             n, sx = min(stx, key=lambda s: abs(s[1] - x))
             return n if abs(sx - x) < 1.2 else None
 
-        for ch in chains(segs):
-            names = Counter(lab[i] for i in ch if i in lab) or Counter(lab_weit[i] for i in ch if i in lab_weit)
+        for ch in chains(segs, lab, folge, sprung):
+            # Nummern neben dem Strich (1. Durchgang) haben Vorrang vor solchen in der Verlängerung
+            names = (Counter(lab[i][0] for i in ch if i in lab and durch[i] == 1)
+                     or Counter(lab[i][0] for i in ch if i in lab))
             zug, vp = names.most_common(1)[0][0] if names else (None, None)
+            # weitere Züge auf demselben Strich (gestapelte Nummern): je eine Kopie des Linienzugs
+            extra = list(dict.fromkeys(n for i in ch if i in lab for n in lab[i][1:] if n[0] != zug))
             pts = []
             for i in ch:
                 s = segs[i]
@@ -229,10 +308,13 @@ def parse_pdf(fn, abbr_name):
                             pts.append([st, t, t])
             if len(pts) < 2:
                 continue
-            trains.append(dict(zug=zug, vp=vp, votes=names.most_common(1)[0][1] if names else 0, linie=Counter(segs[i][4] for i in ch).most_common(1)[0][0],
-                               halte=[[s, round(a, 1), round(b, 1)] for s, a, b in pts],
-                               seite=pno, rand=(min(y2t(segs[i][1]) for i in ch) < tmin + 1
-                                                or max(y2t(segs[i][3]) for i in ch) > tmax - 1)))
+            gemeinsam = dict(linie=Counter(segs[i][4] for i in ch).most_common(1)[0][0],
+                             halte=[[s, round(a, 1), round(b, 1)] for s, a, b in pts],
+                             seite=pno, rand=(min(y2t(segs[i][1]) for i in ch) < tmin + 1
+                                              or max(y2t(segs[i][3]) for i in ch) > tmax - 1))
+            trains.append(dict(zug=zug, vp=vp, votes=names.most_common(1)[0][1] if names else 0, **gemeinsam))
+            for z2, v2 in extra:
+                trains.append(dict(zug=z2, vp=v2, votes=1, gestapelt=True, **gemeinsam))
     # gleiche Zugnummer über Seiten / Teilstücke zusammenführen
     merged = defaultdict(lambda: dict(vp=Counter(), linie=Counter(), pts={}))
     anon = []
