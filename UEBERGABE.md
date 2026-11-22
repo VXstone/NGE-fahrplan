@@ -14,8 +14,8 @@ Gilt für beide Repos: **VXstone/NGE-fahrplan** (dieses) und **VXstone/fahrplan-
   Ein Dispatch-Lauf kann kein *neues* Release anlegen, nur in bestehende hochladen.
 - **Zuerst ansehen, dann behaupten.** Was nur angenommen ist, so benennen. Vor «fehlt» in den Feldlisten nachschauen
   (BLS/SOB stecken in SBB-Feldern, siehe 3).
-- Jede Änderung am Leser mit der **Gegenprobe Reisezüge vs. HRDF** prüfen (`qa.py`, Abschnitt 2): Trefferquote darf
-  nicht sinken (Stand 98,4 % auf ±1,5′).
+- Jede Änderung am Leser mit der **Gegenprobe Reisezüge vs. HRDF** prüfen (`tools/qa.py`, Abschnitt 2): Trefferquote
+  darf nicht sinken (Stand 98,6 % auf ±1,5′, alle 161 Felder 2026).
 - Topologie/Gleiszahlen gehören nach **VXstone/topo-daten** (eigene Übergabe dort), hier nichts Paralleles bauen.
 
 ## 1. Was wo ist
@@ -63,8 +63,10 @@ Zugzahlen (data.sbb.ch) → Mengenabgleich (NNP-Vergleich, `abgleich_nnp_zugzahl
 
 - `build_pub`: Reisezug-Nummern nur, wenn Stationen ≥ 80 % innerhalb 1,5 km vom HRDF-Laufweg und Zeiten ≥ 60 % ±3′;
   Stücke je Nummer nach Zusammenhang gruppiert, Lücken ≤ 60′ verbunden, VP mit «|» vereinigt.
-- **Gegenprobe:** Reisezüge aus denselben PDFs gegen HRDF, je Feld `ok`/`abweichend`. Güterzüge sind nicht prüfbar.
-- Lokaler Volllauf aller 133 SBB-PDFs dauert > 10 min: im Hintergrund oder im Workflow.
+- **Gegenprobe:** `python tools/qa.py grafapla_2026_zuege.json.gz fahrplan.json.gz [--felder …]` (fahrplan.json.gz aus
+  Release `daten` von fahrplan-verstehen). Reisezüge gegen HRDF gleicher Nummer, je Betriebspunkt Ankunft *oder*
+  Abfahrt ±1,5′; je Feld Anteil ohne Nummer und `ok` (≥ 95 %)/`abweichend`. Güterzüge sind nicht prüfbar.
+- Lokaler Volllauf aller 161 PDFs: ~15 min mit `xargs -P 8` je Feld, im Hintergrund oder im Workflow.
 
 ## 3. Fallstricke
 - **Farben** (Linien leicht anders als Text, Toleranz 0.01): Blau 3b65a3 = G 4xxxx–6xxxx; Rot af3734 = Reisezug;
@@ -82,6 +84,12 @@ Zugzahlen (data.sbb.ch) → Mengenabgleich (NNP-Vergleich, `abgleich_nnp_zugzahl
 - **Achse** nach Feldnummer: 540/541/531 Gotthard, 351/352/391 Lötschberg, 222/223 Simplon (nicht nach Stationsnamen).
 - Seiten sind teils doppelt gedruckt (gleiche Zeitspanne) → übersprungen. Stationskopf zweizeilig.
 - **Doppelte Stationen** wo Felder überlappen (z. B. 40002 um Rynächt/Flüelen) – noch offen.
+- **Zeichnung** (seit D genutzt): jeder Strich ist 2× gezeichnet, Züge gleicher Trasse vervielfachen ihn (Nummern dann
+  übereinander); Züge sind im Strom der Reihe nach gezeichnet (Strich, Punkt, Strich), teils gegen die Zeit, und
+  springen über nicht gezeichnete Stücke (Rangierbahnhof Dänken DKW→DK). Standzeit im Rangierbahnhof = senkrechter
+  Strich (LTF Lausanne-Triage), Nummer oft nur am kurzen Ausfahrstummel, in dessen Verlängerung.
+- **Gleiche Nummer, andere VP und Lage** (z. B. 6147 VP 669/759, 6′ versetzt) werden beim Zusammenführen zu einem Zug
+  vermengt (~0,4 % der Züge, Halte doppelt) – offen.
 - **Lizenz:** Quelle «Systemaufgabe Kundeninformation (SKI), oev-info.ch, erstellt von SBB Infrastruktur bzw. den Bahnen»,
   **Lizenz ungeklärt**, überall so vermerkt. Zugzahlen: «Open use. Must provide the source» (SBB).
 - Die Original-PDF-ZIPs liegen noch in den öffentlichen Releases grafapla-2026/-2025; löschen kann nur Daniel.
@@ -97,7 +105,7 @@ mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste
 - [x] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
 - [x] **B** `gz_list.py` (Güterzug-Liste mit Mustern Mo–So, Verkettung, Achse) ins Repo fahrplan-verstehen `tools/`.
 - [ ] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»).
-- [ ] **D** Schwache SBB-Felder: Lausanne-Triage 114–117, Genève 111–113, 151/152, 412, 451, 461, 531, 331.
+- [x] **D** Schwache SBB-Felder: Lausanne-Triage 114–117, Genève 111–113, 151/152, 412, 451, 461, 531, 331.
       Je Feld Anteil Linien ohne Nummer messen (Gegenprobe Abschnitt 2), Ursache am PDF ansehen, nicht raten.
 - [ ] **E** MGB, zb: im Jahresverzeichnis `grafapla/<J>/GZVJ.pdf` bzw. `.xlsx` nachsehen (über Actions holen).
 - [ ] **F** Doppelte Stationen bei überlappenden Feldern entfernen.
@@ -110,3 +118,10 @@ mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste
   Kandersteg–Brig 18, SOB 791 25 Güterzug-Fahrten, Lötschberg-Achse 58.
 - 22.11. B: `gz_list.py` aus dem Chat nachgebaut (fahrplan-verstehen PR #9), Ausgabe = Tabelle (2156 Zeilen, Tage,
   Klassen, Achsen gleich). Regel ergänzt: RhB-G 5xxx über Pischahorn nicht als Vereina-Autoverlad.
+- 22.11. D (PR «grafapla-felder-d»): Ursachen am PDF – gestapelte Nummern gleicher Trasse (nur 1 Zug erkannt), Nummer
+  in Verlängerung von Ausfahrstummeln (Lausanne-Triage), zufällige Wahl an Verzweigungen, Sprung über Rangierbahnhof
+  (Dänken). Leser nutzt jetzt Strich-Vielfachheit + Zeichenreihenfolge (Abschnitt 3). Alle 161 Felder: Gegenprobe
+  98,3 → 98,6 %, G-Stücke mit Nummer 15 624 → 16 699, ohne 5 075 → 4 424, R ohne 38 673 → 31 218. G ohne: 115 61→35 %,
+  152 48→38 %, 451 33→21 %, 412 +124 Züge. Rest in 113–117 = Kurzstücke im Bahnhof, 531 = Striche ausserhalb des
+  Zeitfensters (stehen auf Nachbarseite). Lausanne-Triage 114–117 R bleibt ~95 % («abweichend»). `tools/qa.py` neu.
+  Nach Merge offen: `grafapla.yml` 2026+2025, dann `daten.yml`, Güterzug-Tabelle neu (Schritt A-Ablauf).
