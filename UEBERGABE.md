@@ -124,4 +124,7 @@ mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste
   98,3 → 98,6 %, G-Stücke mit Nummer 15 624 → 16 699, ohne 5 075 → 4 424, R ohne 38 673 → 31 218. G ohne: 115 61→35 %,
   152 48→38 %, 451 33→21 %, 412 +124 Züge. Rest in 113–117 = Kurzstücke im Bahnhof, 531 = Striche ausserhalb des
   Zeitfensters (stehen auf Nachbarseite). Lausanne-Triage 114–117 R bleibt ~95 % («abweichend»). `tools/qa.py` neu.
-  Nach Merge offen: `grafapla.yml` 2026+2025, dann `daten.yml`, Güterzug-Tabelle neu (Schritt A-Ablauf).
+  Nach Merge: grafapla 2026+2025 und `daten.yml` gelaufen, Tabelle neu: 2179 Fahrten (Mo 1187, Di–Fr 1453–1482,
+  Sa 671, So 407), Gotthard 247, Lötschberg 61; Muster-Liste A14:C38 von Hand neu (feste Werte!), Legende 98,6 %.
+- 22.11. Leere Abschnitte 2026 (Blätter ab 01.06. während Totalsperren): Payerne–Murten (252), Iselle–Domodossola
+  (222/223). 2025 war Payerne–Murten gezeichnet → Idee: Rückgriff auf 2025 für gesperrte Abschnitte (wie MOB in C).
