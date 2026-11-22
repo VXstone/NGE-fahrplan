@@ -51,8 +51,9 @@ Seite, Funktionen:
 ### Güterzug-Tabelle (Claude Sheet)
 «Güterzüge Schweiz – publizierter Fahrplan 2026 (Mo–So)», https://claude.ai/artifact/HDh3QJrCLZqzQP5QNYoGXu
 Blätter Übersicht (COUNTIFS je Klasse/Achse × Wochentag), Güterzüge (Spalten A Zug, B Zuglauf-Link, C Verkehrstage,
-D Klasse, E Achse, F–H Von/Ab/Nach, I–O Mo–So, P–X Rest), Legende. Erzeugt mit `gz_list.py` (noch nicht im Repo, s. 4).
-Neue Zeilen: xlsx bauen → als Asset hochladen → `importFile` als Blatt «neu» → `insertRows` vor der letzten Zeile
+D Klasse, E Achse, F–H Von/Ab/Nach, I–O Mo–So, P–X Rest), Legende. Erzeugt mit `fahrplan-verstehen/tools/gz_list.py`;
+`daten.yml` legt `gueterzuege.json/.csv/.xlsx` ins Release `daten` (xlsx = Blatt «Güterzüge»).
+Neue Zeilen: `gueterzuege.xlsx` aus dem Release → als Asset hochladen → `importFile` als Blatt «neu» → `insertRows` vor der letzten Zeile
 (damit die COUNTIFS-Bereiche mitwachsen) → `copyCells` in Stücken à 200 Zeilen → «neu» löschen.
 
 ## 2. Datenkette und Prüfung
@@ -94,7 +95,7 @@ am meisten (RB Lausanne-Triage, Genève, Gotthard 531); E ist nur Nachsehen; F S
 mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste aus B/D/F.
 
 - [x] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
-- [ ] **B** `gz_list.py` (Güterzug-Liste mit Mustern Mo–So, Verkettung, Achse) ins Repo fahrplan-verstehen `tools/`.
+- [x] **B** `gz_list.py` (Güterzug-Liste mit Mustern Mo–So, Verkettung, Achse) ins Repo fahrplan-verstehen `tools/`.
 - [ ] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»).
 - [ ] **D** Schwache SBB-Felder: Lausanne-Triage 114–117, Genève 111–113, 151/152, 412, 451, 461, 531, 331.
       Je Feld Anteil Linien ohne Nummer messen (Gegenprobe Abschnitt 2), Ursache am PDF ansehen, nicht raten.
@@ -107,3 +108,5 @@ mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste
   Tabelle 2104 Fahrten (Mo 1156, Di–Fr 1405–1442, Sa 645, So 386). Label-Korrektur Bergstrecken als PR #6 offen.
 - 22.11. PR #6 drin, grafapla 2026/2025 neu, Tabelle 2156 Fahrten (Mo 1178, Di–Fr 1445–1474, Sa 667, So 402);
   Kandersteg–Brig 18, SOB 791 25 Güterzug-Fahrten, Lötschberg-Achse 58.
+- 22.11. B: `gz_list.py` aus dem Chat nachgebaut (fahrplan-verstehen PR #9), Ausgabe = Tabelle (2156 Zeilen, Tage,
+  Klassen, Achsen gleich). Regel ergänzt: RhB-G 5xxx über Pischahorn nicht als Vereina-Autoverlad.
