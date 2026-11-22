@@ -86,7 +86,7 @@ Zugzahlen (data.sbb.ch) → Mengenabgleich (NNP-Vergleich, `abgleich_nnp_zugzahl
 - Die Original-PDF-ZIPs liegen noch in den öffentlichen Releases grafapla-2026/-2025; löschen kann nur Daniel.
 
 ## 4. Offene Schritte
-- [ ] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
+- [x] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
 - [ ] **B** `gz_list.py` (Güterzug-Liste mit Mustern Mo–So, Verkettung, Achse) ins Repo fahrplan-verstehen `tools/`.
 - [ ] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»).
 - [ ] **D** Schwache SBB-Felder: Lausanne-Triage 114–117, Genève 111–113, 151/152, 412, 451, 461, 531, 331.
@@ -97,3 +97,5 @@ Zugzahlen (data.sbb.ch) → Mengenabgleich (NNP-Vergleich, `abgleich_nnp_zugzahl
 ## 5. Nachträge
 - 21.11. Violett als G (PR #5), RhB- und 636xx-Güterzüge in der Tabelle, Vereina als Autoverlad, «mod» aufgenommen;
   Tabelle 2104 Fahrten (Mo 1156, Di–Fr 1405–1442, Sa 645, So 386). Label-Korrektur Bergstrecken als PR #6 offen.
+- 22.11. PR #6 drin, grafapla 2026/2025 neu, Tabelle 2156 Fahrten (Mo 1178, Di–Fr 1445–1474, Sa 667, So 402);
+  Kandersteg–Brig 18, SOB 791 25 Güterzug-Fahrten, Lötschberg-Achse 58.
