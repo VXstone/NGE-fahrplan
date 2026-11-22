@@ -86,10 +86,18 @@ Zugzahlen (data.sbb.ch) → Mengenabgleich (NNP-Vergleich, `abgleich_nnp_zugzahl
 - Die Original-PDF-ZIPs liegen noch in den öffentlichen Releases grafapla-2026/-2025; löschen kann nur Daniel.
 
 ## 4. Offene Schritte
+**Reihenfolge:** B → D → E → F → C → G. Ein Chat je Schritt, nacheinander (gleicher Code).
+Einstieg (Daniel kopiert): «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt X» = Freigabe für Branch + PR,
+Workflows anstossen, Güterzug-Tabelle schreiben. Am Ende: Schritt abhaken, Nachtrag in 5, PR für die Übergabe.
+Begründung: B zuerst (klein, macht die Tabelle reproduzierbar, Grundlage für alles Weitere); D bringt beim Güterverkehr
+am meisten (RB Lausanne-Triage, Genève, Gotthard 531); E ist nur Nachsehen; F Schönheitsfehler; C grösserer Aufwand
+mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste aus B/D/F.
+
 - [x] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
 - [ ] **B** `gz_list.py` (Güterzug-Liste mit Mustern Mo–So, Verkettung, Achse) ins Repo fahrplan-verstehen `tools/`.
 - [ ] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»).
 - [ ] **D** Schwache SBB-Felder: Lausanne-Triage 114–117, Genève 111–113, 151/152, 412, 451, 461, 531, 331.
+      Je Feld Anteil Linien ohne Nummer messen (Gegenprobe Abschnitt 2), Ursache am PDF ansehen, nicht raten.
 - [ ] **E** MGB, zb: im Jahresverzeichnis `grafapla/<J>/GZVJ.pdf` bzw. `.xlsx` nachsehen (über Actions holen).
 - [ ] **F** Doppelte Stationen bei überlappenden Feldern entfernen.
 - [ ] **G** Gleiszahl-Abgleich: befahrene Abschnitte der Güterzüge als Eingabe an topo-daten (Schritt dort).
