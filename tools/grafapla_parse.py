@@ -121,7 +121,17 @@ def labels(p):
 
 
 def assign(labs, segs):
-    """Zugnummer -> Segment: gleiche Neigung, kleiner Normalabstand."""
+    """Zugnummer -> Segment: gleiche Neigung, kleiner Normalabstand.
+    Erst nur Segmente, neben denen die Nummer steht; danach (z. B. Bergstrecke Kandersteg–Brig
+    mit kurzen, steilen Segmenten) auch solche, in deren Verlängerung sie steht."""
+    res = _assign(labs, segs, 5, 5)
+    done = set(res.values())
+    rest = [l for l in labs if (l[0], l[1]) not in done]
+    weit = {i: v for i, v in _assign(rest, segs, 60, 3).items() if i not in res}
+    return res, weit
+
+
+def _assign(labs, segs, over, maxd):
     res = {}
     for zug, vp, cx, cy, dx, dy in labs:
         best = None
@@ -136,10 +146,10 @@ def assign(labs, segs):
             if abs(ux * dy - uy * dx) > 0.03:  # Winkel
                 continue
             t = (cx - ax) * ux * (1 if sx > 0 else -1) + (cy - ay) * uy * (1 if sx > 0 else -1)
-            if t < -5 or t > L + 5:
+            if t < -over or t > L + over:
                 continue
             dist = abs((cx - ax) * uy - (cy - ay) * ux)
-            if dist < 5 and (best is None or dist < best[0]):
+            if dist < maxd and (best is None or dist < best[0]):
                 best = (dist, i)
         if best:
             res.setdefault(best[1], (zug, vp))
@@ -197,14 +207,14 @@ def parse_pdf(fn, abbr_name):
             continue
         seen_pages.add(sig)
         segs = segments(p)
-        lab = assign(labels(p), segs)
+        lab, lab_weit = assign(labels(p), segs)
 
         def x2st(x):
             n, sx = min(stx, key=lambda s: abs(s[1] - x))
             return n if abs(sx - x) < 1.2 else None
 
         for ch in chains(segs):
-            names = Counter(lab[i] for i in ch if i in lab)
+            names = Counter(lab[i] for i in ch if i in lab) or Counter(lab_weit[i] for i in ch if i in lab_weit)
             zug, vp = names.most_common(1)[0][0] if names else (None, None)
             pts = []
             for i in ch:
