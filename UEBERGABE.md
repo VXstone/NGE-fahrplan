@@ -17,6 +17,19 @@ Gilt für beide Repos: **VXstone/NGE-fahrplan** (dieses) und **VXstone/fahrplan-
 - Jede Änderung am Leser mit der **Gegenprobe Reisezüge vs. HRDF** prüfen (`tools/qa.py`, Abschnitt 2): Trefferquote
   darf nicht sinken (Stand 98,6 % auf ±1,5′, alle 161 Felder 2026).
 - Topologie/Gleiszahlen gehören nach **VXstone/topo-daten** (eigene Übergabe dort), hier nichts Paralleles bauen.
+- **Am Ende jedes Schritts** in der Antwort an Daniel: direkte Links zu allem, was er ausführen muss (PR, Workflow-Seite
+  mit «Run workflow», Eingabe z. B. `year=2025`), in der Reihenfolge, und den **Prompt für den nächsten Schritt** zum Kopieren.
+
+### Links zum Ausführen
+| Was | Link |
+|---|---|
+| PRs mergen | https://github.com/VXstone/NGE-fahrplan/pulls · https://github.com/VXstone/fahrplan-verstehen/pulls |
+| grafapla (Run workflow, `year` 2026 bzw. 2025) | https://github.com/VXstone/NGE-fahrplan/actions/workflows/grafapla.yml |
+| Fahrplandaten (HRDF, Zugzahlen) | https://github.com/VXstone/NGE-fahrplan/actions/workflows/fahrplandaten.yml |
+| Erkundung Verzeichnis/PDFs | https://github.com/VXstone/NGE-fahrplan/actions/workflows/grafapla-verzeichnis.yml |
+| daten (fahrplan-verstehen: Seite, Tabelle) | https://github.com/VXstone/fahrplan-verstehen/actions/workflows/daten.yml |
+| Releases | https://github.com/VXstone/NGE-fahrplan/releases · https://github.com/VXstone/fahrplan-verstehen/releases/tag/daten |
+| Güterzug-Tabelle | https://claude.ai/artifact/HDh3QJrCLZqzQP5QNYoGXu |
 
 ## 1. Was wo ist
 
@@ -103,17 +116,24 @@ Begründung: B zuerst (klein, macht die Tabelle reproduzierbar, Grundlage für a
 am meisten (RB Lausanne-Triage, Genève, Gotthard 531); E ist nur Nachsehen; F Schönheitsfehler; C grösserer Aufwand
 mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste aus B/D/F.
 
+**Nächster Einstieg (kopieren):** «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt F»
+Nach dem Merge eines Leser-Schritts (C, D, F) ausführen: grafapla `year=2026`, dann `year=2025` → daten → Claude schreibt
+die Güterzug-Tabelle neu (Links oben).
+
 - [x] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
 - [x] **B** `gz_list.py` (Güterzug-Liste mit Mustern Mo–So, Verkettung, Achse) ins Repo fahrplan-verstehen `tools/`.
 - [ ] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»);
       seit E auch **MGB** `GMGBS`/`GMGBW` (Sommer/Winter, nur bis 2025, 1 Blatt, Zermatt–Brig + Brig–Göschenen/Disentis,
       Farben 0000ff/000000/ff0000/008000/ff8000/808000, VP «Güter» im Winterblatt) und **DB Basel Bad** `GDB1–3`
       (bis 2025, 45 S., DB-InfraGO-Layout, Farben f5ae0c/0080ff, Basel Bad Rbf → Güterverkehr). Beide überspringt der Leser.
+      Danach: «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt G»
 - [x] **D** Schwache SBB-Felder: Lausanne-Triage 114–117, Genève 111–113, 151/152, 412, 451, 461, 531, 331.
       Je Feld Anteil Linien ohne Nummer messen (Gegenprobe Abschnitt 2), Ursache am PDF ansehen, nicht raten.
 - [x] **E** MGB, zb: im Jahresverzeichnis `grafapla/<J>/GZVJ.pdf` bzw. `.xlsx` nachsehen (über Actions holen).
 - [ ] **F** Doppelte Stationen bei überlappenden Feldern entfernen.
+      Danach: «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt C»
 - [ ] **G** Gleiszahl-Abgleich: befahrene Abschnitte der Güterzüge als Eingabe an topo-daten (Schritt dort).
+      Danach: Übergabe in VXstone/topo-daten weiterführen.
 
 ## 5. Nachträge
 - 21.11. Violett als G (PR #5), RhB- und 636xx-Güterzüge in der Tabelle, Vereina als Autoverlad, «mod» aufgenommen;
