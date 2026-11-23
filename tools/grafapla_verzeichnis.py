@@ -19,7 +19,12 @@ KUERZEL = ["MGB", "Mgb", "mgb", "ZB", "zb", "Zb", "BOB", "MOB", "CJ", "GGB", "BL
 
 ap = argparse.ArgumentParser(); ap.add_argument("out")
 ap.add_argument("--jahre", nargs="+", type=int, default=[2027, 2026, 2025])
+ap.add_argument("--pdfs", nargs="*", default=[], help="einzelne PDFs ansehen (Seiten, Text, Linienfarben)")
+ap.add_argument("--nur-pdfs", action="store_true")
 a = ap.parse_args()
+# Jahres-IDs des Filters «year» auf der Listenseite (aus der ersten Erkundung)
+JAHR_ID = {2026: 2184746, 2025: 1753514, 2024: 638390, 2023: 69400}
+JAHRLISTE = "https://www.oev-info.ch/de/fahrplan-aktuell/grafische-fahrplaene?year={id}&items_per_page=1000"
 
 
 def hole(url, timeout=60):
@@ -54,7 +59,44 @@ def text_aus(name, data):
     return data[:20000].decode("utf-8", "ignore"), []
 
 
-erg = {"verzeichnis": [], "listen": {}, "kuerzel": []}
+def pdf_ansehen(url):
+    import fitz
+    from collections import Counter
+    st, ct, data = hole(url)
+    e = {"url": url, "status": st, "kb": len(data) // 1024}
+    if st != 200 or data[:4] != b"%PDF":
+        return e
+    doc = fitz.open(stream=data, filetype="pdf")
+    e["seiten"] = len(doc)
+    e["format"] = [round(doc[0].rect.width), round(doc[0].rect.height)]
+    farben, nummern = Counter(), Counter()
+    for i, p in enumerate(doc):
+        if i < 6:
+            for d in p.get_drawings():
+                c = d.get("color")
+                if c:
+                    farben["%02x%02x%02x" % tuple(int(round(v * 255)) for v in c[:3])] += 1
+        for w in p.get_text("words"):
+            if re.fullmatch(r"\d{3,5}[A-Z]?", w[4]):
+                nummern[len(re.sub(r"\D", "", w[4]))] += 1
+    e["farben_s1_6"] = farben.most_common(12)
+    e["nummern_nach_stellen"] = dict(nummern)
+    e["text_s1"] = doc[0].get_text()[:4000]
+    e["text_alle"] = "\n".join(p.get_text() for p in doc)[:60000] if len(doc) <= 12 else ""
+    return e
+
+
+erg = {"verzeichnis": [], "listen": {}, "kuerzel": [], "pdfs": [], "jahrlisten": {}}
+if a.pdfs:
+    erg["pdfs"] = [pdf_ansehen(u) for u in a.pdfs]
+# Jahreslisten (alle Einträge eines Jahres auf einer Seite)
+for y, jid in JAHR_ID.items():
+    st, ct, data = hole(JAHRLISTE.format(id=jid))
+    h = data.decode("utf-8", "ignore")
+    erg["jahrlisten"][y] = {"status": st, "links": sorted(set(re.findall(r"/grafapla/\d{4}/[^\"'?#]+\.(?:pdf|xlsx)", h)))}
+if a.nur_pdfs:
+    json.dump(erg, open(a.out, "w"), ensure_ascii=False, indent=1)
+    raise SystemExit(0)
 # 1) Jahresverzeichnis
 for y in a.jahre:
     for host in HOSTS:

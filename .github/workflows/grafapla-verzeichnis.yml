@@ -23,7 +23,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pymupdf openpyxl
-      - run: python tools/grafapla_verzeichnis.py erkundung_verzeichnis.json
+      - run: |
+          B=https://www.oev-info.ch/sites/default/files/grafapla
+          python tools/grafapla_verzeichnis.py erkundung_verzeichnis.json --nur-pdfs --pdfs \
+            $B/2023/GZVJ.pdf $B/2022/07.061.pdf $B/2025/GMGBS.pdf $B/2025/GMGBW.pdf $B/2025/GDB1.pdf \
+            $B/2025/GBOB.pdf $B/2025/GMOB.pdf $B/2026/GCJ.pdf
       - name: Ins Release
         env:
           GH_TOKEN: ${{ github.token }}
