@@ -1,14 +1,15 @@
 name: Grafische Fahrplaene Verzeichnis
 
-# Erkundung (Schritt E): Jahresverzeichnis GZVJ und Listenseiten nachsehen,
-# MGB/zb suchen. Ergebnis als erkundung_verzeichnis.json ins Release grafapla-2026.
+# Erkundung (Schritt E): Listenseiten, GZVJ und einzelne PDFs nachsehen.
+# Ergebnis als erkundung_verzeichnis.json ins Release grafapla-2026.
+# pdfs leer = volle Erkundung (Verzeichnis, Listenseiten, Kürzel-Proben).
 on:
   workflow_dispatch:
-  push:
-    branches: [grafapla-e]
-    paths:
-      - ".github/workflows/grafapla-verzeichnis.yml"
-      - "tools/grafapla_verzeichnis.py"
+    inputs:
+      pdfs:
+        description: "PDF-URLs (Leerzeichen-getrennt), leer = volle Erkundung"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -23,11 +24,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pymupdf openpyxl
-      - run: |
-          B=https://www.oev-info.ch/sites/default/files/grafapla
-          python tools/grafapla_verzeichnis.py erkundung_verzeichnis.json --nur-pdfs --pdfs \
-            $B/2023/GZVJ.pdf $B/2022/07.061.pdf $B/2025/GMGBS.pdf $B/2025/GMGBW.pdf $B/2025/GDB1.pdf \
-            $B/2025/GBOB.pdf $B/2025/GMOB.pdf $B/2026/GCJ.pdf
+      - env:
+          PDFS: ${{ inputs.pdfs }}
+        run: |
+          if [ -n "$PDFS" ]; then
+            python tools/grafapla_verzeichnis.py erkundung_verzeichnis.json --nur-pdfs --pdfs $PDFS
+          else
+            python tools/grafapla_verzeichnis.py erkundung_verzeichnis.json
+          fi
       - name: Ins Release
         env:
           GH_TOKEN: ${{ github.token }}

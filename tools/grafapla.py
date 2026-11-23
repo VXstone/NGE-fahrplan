@@ -7,6 +7,9 @@ Die SBB publiziert pro Fahrplanfeld einen grafischen Fahrplan als PDF
 Güterzüge (5-stellige Zugnummern, Suffix F = fakultativ). Es gibt kein
 Verzeichnis-Listing; darum: Verzeichnis GZVJ (xlsx/pdf) auswerten und zusätzlich
 alle Feldnummern 100–999 (plus 00d/00f Zeichenerklärung) durchprobieren.
+Seit Schritt E: GZVJ gibt es nur 2020–2023 (BAV-Archivliste, seit 2024 404). Massgebend ist die
+Listenseite mit Jahresfilter (?year=<id>&items_per_page=1000); dort stehen auch Namen, die das
+Durchprobieren nicht trifft (2025: GMGBS/GMGBW Sommer/Winter, GDB1–3 DB Basel Bad).
 Ergebnis: grafapla_<Jahr>.zip + grafapla_<Jahr>.json (Liste, Titel, Grösse).
 """
 import argparse, io, json, re, sys, time, urllib.request, zipfile, concurrent.futures as cf
@@ -76,6 +79,20 @@ for pg in range(0, 200):
     leer = leer + 1 if neu == 0 else 0
     if leer >= 3:
         break
+# 1c) Liste mit Jahresfilter: Jahres-ID aus dem Auswahlfeld «year» der ersten Listenseite
+try:
+    html = get(LISTE.format(p=0)).decode("utf-8", "ignore")
+    sel = re.search(r'<select[^>]*name="year"[^>]*>(.*?)</select>', html, re.S)
+    jid = dict((t.strip(), v) for v, t in re.findall(r'<option[^>]*value="([^"]*)"[^>]*>([^<]*)<', sel.group(1))).get(str(y))
+    if jid:
+        html = get(f"https://www.oev-info.ch/de/fahrplan-aktuell/grafische-fahrplaene?year={jid}&items_per_page=1000").decode("utf-8", "ignore")
+        jl = set(re.findall(rf"/grafapla/{y}/([^\"'/?#]+\.pdf)", html))
+        log["aus_jahresliste"] = len(jl)
+        names |= jl
+    else:
+        log["fehler"].append(f"Jahresfilter: keine ID für {y}")
+except Exception as e:  # noqa
+    log["fehler"].append(f"Jahresliste: {type(e).__name__}")
 log["aus_liste"] = len(names)
 log["listenseiten"] = pg + 1
 # 2) Durchprobieren

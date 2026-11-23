@@ -1,4 +1,4 @@
-# Übergabe NGE-fahrplan + fahrplan-verstehen – Stand 22.11.2026
+# Übergabe NGE-fahrplan + fahrplan-verstehen – Stand 23.11.2026
 
 Kurz halten. Gelesen wird Abschnitt 0, 1 und der eigene Schritt in Abschnitt 4. Nachträge am Ende eines Schritts
 **höchstens 10 Zeilen** in Abschnitt 5; wird er länger als ~60 Zeilen, die ältesten in `UEBERGABE_ARCHIV.md` verschieben.
@@ -25,7 +25,8 @@ Gilt für beide Repos: **VXstone/NGE-fahrplan** (dieses) und **VXstone/fahrplan-
 |---|---|
 | `nge_fahrplan/` | HRDF + atlas/DIDOK + topo-daten-Betriebspunkte → NGE-JSON (Netzgrafik-Editor). Details README |
 | `tools/fahrplandaten.py`, `fahrplandaten.yml` | samstags: HRDF, Stationen, **Zugzahlen** (data.sbb.ch `zugzahlen`, `zugzahlen_pro_monat`) → Release, `stand.json` |
-| `tools/grafapla.py` | grafische Fahrpläne holen: `oev-info.ch`/`tp-info.ch …/grafapla/{Jahr}/G{feld}.pdf`, Listenseiten `?page=N` + Proben G100–999 und Bahnkürzel × Suffix |
+| `tools/grafapla.py` | grafische Fahrpläne holen: `oev-info.ch`/`tp-info.ch …/grafapla/{Jahr}/G{feld}.pdf`, Listenseite mit Jahresfilter `?year=<id>&items_per_page=1000` (massgebend), `?page=N` + Proben G100–999 und Bahnkürzel × Suffix |
+| `tools/grafapla_verzeichnis.py`, `grafapla-verzeichnis.yml` | Erkundung (Dispatch): Listenseiten, Filter (Jahr, EVU), einzelne PDFs (Seiten, Farben, Text) → `erkundung_verzeichnis.json` im Release grafapla-2026 |
 | `tools/grafapla_parse.py` | SBB-Layout lesen (Zeit senkrecht, Stationen waagrecht); auch SZU, BLS-/SOB-Felder |
 | `tools/grafapla_rhb.py` | RhB-Layout (Zeit waagrecht) |
 | `tools/grafapla_vp.py` | Verkehrsperioden entschlüsseln |
@@ -104,10 +105,13 @@ mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste
 
 - [x] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
 - [x] **B** `gz_list.py` (Güterzug-Liste mit Mustern Mo–So, Verkettung, Achse) ins Repo fahrplan-verstehen `tools/`.
-- [ ] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»).
+- [ ] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»);
+      seit E auch **MGB** `GMGBS`/`GMGBW` (Sommer/Winter, nur bis 2025, 1 Blatt, Zermatt–Brig + Brig–Göschenen/Disentis,
+      Farben 0000ff/000000/ff0000/008000/ff8000/808000, VP «Güter» im Winterblatt) und **DB Basel Bad** `GDB1–3`
+      (bis 2025, 45 S., DB-InfraGO-Layout, Farben f5ae0c/0080ff, Basel Bad Rbf → Güterverkehr). Beide überspringt der Leser.
 - [x] **D** Schwache SBB-Felder: Lausanne-Triage 114–117, Genève 111–113, 151/152, 412, 451, 461, 531, 331.
       Je Feld Anteil Linien ohne Nummer messen (Gegenprobe Abschnitt 2), Ursache am PDF ansehen, nicht raten.
-- [ ] **E** MGB, zb: im Jahresverzeichnis `grafapla/<J>/GZVJ.pdf` bzw. `.xlsx` nachsehen (über Actions holen).
+- [x] **E** MGB, zb: im Jahresverzeichnis `grafapla/<J>/GZVJ.pdf` bzw. `.xlsx` nachsehen (über Actions holen).
 - [ ] **F** Doppelte Stationen bei überlappenden Feldern entfernen.
 - [ ] **G** Gleiszahl-Abgleich: befahrene Abschnitte der Güterzüge als Eingabe an topo-daten (Schritt dort).
 
@@ -128,3 +132,9 @@ mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste
   Sa 671, So 407), Gotthard 247, Lötschberg 61; Muster-Liste A14:C38 von Hand neu (feste Werte!), Legende 98,6 %.
 - 22.11. Leere Abschnitte 2026 (Blätter ab 01.06. während Totalsperren): Payerne–Murten (252), Iselle–Domodossola
   (222/223). 2025 war Payerne–Murten gezeichnet → Idee: Rückgriff auf 2025 für gesperrte Abschnitte (wie MOB in C).
+- 23.11. E: **GZVJ gibt es nur 2020–2023** (BAV-Archivliste alter fahrplanfelder.ch-Links seit 2009), 2024–2027 404.
+  Massgebend ist die Listenseite oev-info.ch mit Filtern Jahr (IDs 2026=2184746, 2025=1753514) und EVU. **MGB** =
+  `GMGBS`/`GMGBW` 2019–2025, **2026 nicht publiziert**; fehlte bisher (Suffix S/W nicht geprobt), ebenso `GDB1–3`
+  2025. **zb**: nicht unter den EVU-Filtern, keine Datei 2018–2026 → keine grafischen Fahrpläne (GZVJ nur S. 1 gelesen).
+  2026 Liste = unsere 161 Dateien (vollständig). `grafapla.py` nutzt jetzt die Jahresliste; Leser überspringt GMGB*/GDB*.
+  Güterzug-Tabelle unverändert (keine neuen Züge). Nach Merge: `grafapla.yml` für 2025 starten (nur Dateiliste neu).
