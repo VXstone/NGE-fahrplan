@@ -400,6 +400,11 @@ if __name__ == "__main__":
             res.append(r)
             print(r["feld"], {k: len(v["zuege"]) for k, v in r["kat"].items()}, "(RhB)", file=sys.stderr)
             continue
+        # eigenes Layout, noch ohne Leser (Schritt E): MGB Sommer/Winter, DB Basel Bad
+        if fn.name.startswith(("GMGB", "GDB")):
+            res.append(dict(feld=fn.stem[1:], kat={}, fehler={"Layout": "eigenes Layout, kein Leser (siehe UEBERGABE C)"}))
+            print(fn.stem[1:], "übersprungen (eigenes Layout)", file=sys.stderr)
+            continue
         r = dict(feld=fn.stem[1:], kat={})
         for kat, farbe in FARBEN.items():
             set_farbe(farbe)

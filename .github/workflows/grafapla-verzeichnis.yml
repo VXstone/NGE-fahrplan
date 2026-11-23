@@ -1,0 +1,38 @@
+name: Grafische Fahrplaene Verzeichnis
+
+# Erkundung (Schritt E): Listenseiten, GZVJ und einzelne PDFs nachsehen.
+# Ergebnis als erkundung_verzeichnis.json ins Release grafapla-2026.
+# pdfs leer = volle Erkundung (Verzeichnis, Listenseiten, Kürzel-Proben).
+on:
+  workflow_dispatch:
+    inputs:
+      pdfs:
+        description: "PDF-URLs (Leerzeichen-getrennt), leer = volle Erkundung"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  nachsehen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pymupdf openpyxl
+      - env:
+          PDFS: ${{ inputs.pdfs }}
+        run: |
+          if [ -n "$PDFS" ]; then
+            python tools/grafapla_verzeichnis.py erkundung_verzeichnis.json --nur-pdfs --pdfs $PDFS
+          else
+            python tools/grafapla_verzeichnis.py erkundung_verzeichnis.json
+          fi
+      - name: Ins Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload grafapla-2026 erkundung_verzeichnis.json --clobber
