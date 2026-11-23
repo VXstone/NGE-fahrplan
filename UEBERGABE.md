@@ -114,7 +114,7 @@ Einstieg (Daniel kopiert): «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan –
 Workflows anstossen, Güterzug-Tabelle schreiben. Am Ende: Schritt abhaken, Nachtrag in 5, PR für die Übergabe.
 Begründung: B zuerst (klein, macht die Tabelle reproduzierbar, Grundlage für alles Weitere); D bringt beim Güterverkehr
 am meisten (RB Lausanne-Triage, Genève, Gotthard 531); E ist nur Nachsehen; F Schönheitsfehler; C grösserer Aufwand
-mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste aus B/D/F.
+mit wenig Güterverkehr; G nimmt Gleiszahlen aus topo-daten und braucht die saubere Liste aus B/D/F.
 
 **Nächster Einstieg (kopieren):** «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt F»
 Nach dem Merge eines Leser-Schritts (C, D, F) ausführen: grafapla `year=2026`, dann `year=2025` → daten → Claude schreibt
@@ -132,8 +132,11 @@ die Güterzug-Tabelle neu (Links oben).
 - [x] **E** MGB, zb: im Jahresverzeichnis `grafapla/<J>/GZVJ.pdf` bzw. `.xlsx` nachsehen (über Actions holen).
 - [ ] **F** Doppelte Stationen bei überlappenden Feldern entfernen.
       Danach: «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt C»
-- [ ] **G** Gleiszahl-Abgleich: befahrene Abschnitte der Güterzüge als Eingabe an topo-daten (Schritt dort).
-      Danach: Übergabe in VXstone/topo-daten weiterführen.
+- [ ] **G** Gleiszahlen **aus topo-daten** in fahrplan-verstehen übernehmen (Richtung topo-daten → hier) statt aus
+      Begegnungen schätzen; Abschnitte ohne topo-daten bleiben «geschätzt». Topologie nur lesen, nichts dort bauen.
+      Nebenprodukt: Liste der von Güterzügen befahrenen Abschnitte als Prüfliste für topo-daten (fehlende Verbindung,
+      reine Güterabschnitte nach REGELN 1.21) – dort Eingabe für Hinweise, kein eigener Schritt.
+      Danach: offene Punkte aus Abschnitt 3 (gleiche Nummer/andere VP, Rückgriff 2025 bei Totalsperren).
 
 ## 5. Nachträge
 - 21.11. Violett als G (PR #5), RhB- und 636xx-Güterzüge in der Tabelle, Vereina als Autoverlad, «mod» aufgenommen;
