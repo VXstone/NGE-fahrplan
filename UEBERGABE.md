@@ -97,7 +97,8 @@ Zugzahlen (data.sbb.ch) → Mengenabgleich (NNP-Vergleich, `abgleich_nnp_zugzahl
 - **Simplon 222/223** enthalten keine Güterzüge (laut Zugzahlen ~32/Tag).
 - **Achse** nach Feldnummer: 540/541/531 Gotthard, 351/352/391 Lötschberg, 222/223 Simplon (nicht nach Stationsnamen).
 - Seiten sind teils doppelt gedruckt (gleiche Zeitspanne) → übersprungen. Stationskopf zweizeilig.
-- **Doppelte Stationen** wo Felder überlappen (z. B. 40002 um Rynächt/Flüelen) – noch offen.
+- **Doppelte Stationen** wo Felder überlappen: in `build_pub.merge` bereinigt (F). Doppelungen *innerhalb* eines Felds
+  bleiben (gleiche Nummer, andere VP/Lage, nächster Punkt).
 - **Zeichnung** (seit D genutzt): jeder Strich ist 2× gezeichnet, Züge gleicher Trasse vervielfachen ihn (Nummern dann
   übereinander); Züge sind im Strom der Reihe nach gezeichnet (Strich, Punkt, Strich), teils gegen die Zeit, und
   springen über nicht gezeichnete Stücke (Rangierbahnhof Dänken DKW→DK). Standzeit im Rangierbahnhof = senkrechter
@@ -116,8 +117,8 @@ Begründung: B zuerst (klein, macht die Tabelle reproduzierbar, Grundlage für a
 am meisten (RB Lausanne-Triage, Genève, Gotthard 531); E ist nur Nachsehen; F Schönheitsfehler; C grösserer Aufwand
 mit wenig Güterverkehr; G gehört nach topo-daten und braucht die saubere Liste aus B/D/F.
 
-**Nächster Einstieg (kopieren):** «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt F»
-Nach dem Merge eines Leser-Schritts (C, D, F) ausführen: grafapla `year=2026`, dann `year=2025` → daten → Claude schreibt
+**Nächster Einstieg (kopieren):** «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt C»
+Nach dem Merge eines Leser-Schritts (C, D) ausführen: grafapla `year=2026`, dann `year=2025` → daten → Claude schreibt
 die Güterzug-Tabelle neu (Links oben).
 
 - [x] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
@@ -130,7 +131,7 @@ die Güterzug-Tabelle neu (Links oben).
 - [x] **D** Schwache SBB-Felder: Lausanne-Triage 114–117, Genève 111–113, 151/152, 412, 451, 461, 531, 331.
       Je Feld Anteil Linien ohne Nummer messen (Gegenprobe Abschnitt 2), Ursache am PDF ansehen, nicht raten.
 - [x] **E** MGB, zb: im Jahresverzeichnis `grafapla/<J>/GZVJ.pdf` bzw. `.xlsx` nachsehen (über Actions holen).
-- [ ] **F** Doppelte Stationen bei überlappenden Feldern entfernen.
+- [x] **F** Doppelte Stationen bei überlappenden Feldern entfernen (fahrplan-verstehen `build_pub.merge`, PR #10).
       Danach: «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt C»
 - [ ] **G** Gleiszahl-Abgleich: befahrene Abschnitte der Güterzüge als Eingabe an topo-daten (Schritt dort).
       Danach: Übergabe in VXstone/topo-daten weiterführen.
@@ -158,3 +159,8 @@ die Güterzug-Tabelle neu (Links oben).
   2025. **zb**: nicht unter den EVU-Filtern, keine Datei 2018–2026 → keine grafischen Fahrpläne (GZVJ nur S. 1 gelesen).
   2026 Liste = unsere 161 Dateien (vollständig). `grafapla.py` nutzt jetzt die Jahresliste; Leser überspringt GMGB*/GDB*.
   Güterzug-Tabelle unverändert (keine neuen Züge). Nach Merge: `grafapla.yml` für 2025 starten (nur Dateiliste neu).
+- 23.11. F (fahrplan-verstehen PR #10): Überlappung wird in `build_pub` aufgelöst, nicht im Leser. Je Punkt: gleiche
+  Zeit → eins; Stückende-Ankunft + Stückanfang-Abfahrt → ein Halt; Widerspruch → Mehrheit der Felder, dann Stück weiter
+  innen (40002: 531 statt 540 bei RYUE–FL). Läufe mit Doppelpunkt R/G/L 800/129/41 → 141/54/25, Rest nur innerhalb eines
+  Felds. Publikation vs. HRDF An-oder-Ab 98,99 → 99,05 %, An-und-Ab 77,5 → 78,4 %. Güterzug-Liste 2179 Zeilen, nur «via»
+  bei 13 Zügen sauberer. Leser unverändert → grafapla nicht neu; nach Merge `daten.yml` starten, Tabelle (nur «via») in C mit neu.
