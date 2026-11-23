@@ -1,0 +1,30 @@
+name: Grafische Fahrplaene Verzeichnis
+
+# Erkundung (Schritt E): Jahresverzeichnis GZVJ und Listenseiten nachsehen,
+# MGB/zb suchen. Ergebnis als erkundung_verzeichnis.json ins Release grafapla-2026.
+on:
+  workflow_dispatch:
+  push:
+    branches: [grafapla-e]
+    paths:
+      - ".github/workflows/grafapla-verzeichnis.yml"
+      - "tools/grafapla_verzeichnis.py"
+
+permissions:
+  contents: write
+
+jobs:
+  nachsehen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pymupdf openpyxl
+      - run: python tools/grafapla_verzeichnis.py erkundung_verzeichnis.json
+      - name: Ins Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload grafapla-2026 erkundung_verzeichnis.json --clobber
