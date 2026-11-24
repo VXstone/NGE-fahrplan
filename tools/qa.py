@@ -42,7 +42,7 @@ def pruefe(zuege, H, felder=None, tol=1.5):
     for f in zuege["felder"]:
         if felder and f["feld"] not in felder:
             continue
-        r = dict(ohne={}, mit={}, n=0, ok=0, zuege_geprueft=0)
+        r = dict(ohne={}, mit={}, n=0, ok=0, zuege_geprueft=0, stand=f.get("stand"))
         for kat, blk in f.get("kat", {}).items():
             r["mit"][kat] = len(blk["zuege"])
             r["ohne"][kat] = blk.get("ohne_nummer", 0)
@@ -79,7 +79,7 @@ def main():
     z = json.load(gzip.open(a.zuege, "rt", encoding="utf-8") if a.zuege.endswith(".gz") else open(a.zuege, encoding="utf-8"))
     res = pruefe(z, lade_hrdf(a.fahrplan), set(a.felder.split(",")) if a.felder else None, a.tol)
     print(f"{'Feld':6} {'G mit/ohne':>11} {'Anteil':>6} {'R mit/ohne':>11} {'Anteil':>6} {'R geprüft':>9} {'Quote':>6}")
-    N = OK = 0
+    N = OK = VN = VOK = 0
     for feld, r in sorted(res.items()):
         def anteil(k):
             m, o = r["mit"].get(k, 0), r["ohne"].get(k, 0)
@@ -87,10 +87,17 @@ def main():
         g, ga = anteil("G")
         rr, ra = anteil("R")
         q = f"{r['quote']:6.1%}" if r["quote"] is not None else "     -"
-        print(f"{feld:6} {g} {ga} {rr} {ra} {r['zuege_geprueft']:>9} {q} {'' if r['quote'] is None else ('ok' if r['quote'] >= 0.95 else 'abweichend')}")
+        print(f"{feld:6} {g} {ga} {rr} {ra} {r['zuege_geprueft']:>9} {q} {'' if r['quote'] is None else ('ok' if r['quote'] >= 0.95 else 'abweichend')}"
+              + (f" ({r['stand']}, nicht im Gesamt)" if r["stand"] else ""))
+        if r["stand"]:      # Blatt aus dem Vorjahr: gegen die HRDF des laufenden Jahres nicht vergleichbar
+            VN += r["n"]
+            VOK += r["ok"]
+            continue
         N += r["n"]
         OK += r["ok"]
     print(f"Gesamt: {OK}/{N} Betriebspunkte = {OK / N:.1%} auf ±{a.tol}′" if N else "keine Reisezüge geprüft")
+    if VN:
+        print(f"Vorjahresblätter: {VOK}/{VN} = {VOK / VN:.1%} (gegen HRDF des laufenden Jahres, nur Anhalt)")
     if a.json:
         json.dump(dict(gesamt=OK / N if N else None, felder=res), open(a.json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 

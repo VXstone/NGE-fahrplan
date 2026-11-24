@@ -32,12 +32,12 @@ def get(url, timeout=60):
         return r.read()
 
 
-def first_ok(name):
+def first_ok(name, jahr=None):
     for b in BASES:
         try:
-            data = get(b.format(y=y) + name)
+            data = get(b.format(y=jahr or y) + name)
             if data[:4] == b"%PDF" or name.endswith(".xlsx"):
-                return b.format(y=y) + name, data
+                return b.format(y=jahr or y) + name, data
         except Exception:
             pass
     return None, None
@@ -105,6 +105,9 @@ BAHNEN = ["AB", "AOMC", "ASD", "ASM", "AVA", "BAM", "BC", "BDWM", "BLM", "BLS", 
 names |= {f"G{b}{n}.pdf" for b in BAHNEN for n in ["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]}
 
 
+VORJAHR = ["GMGBS.pdf", "GMGBW.pdf", "GMOB.pdf", "GBOB.pdf", "GCJ.pdf"]
+
+
 def fetch(name):
     url, data = first_ok(name)
     return name, url, data
@@ -118,6 +121,17 @@ with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_STORED) as z, cf.ThreadPoolExecutor(
         z.writestr(name, data)
         head = data[:200000].decode("latin-1", "ignore")
         log["dateien"][name] = {"url": url, "kb": len(data) // 1024}
-print(f"{len(log['dateien'])} PDFs", file=sys.stderr)
+    # Vorjahr (Schritt C): Blätter mit eigenem Leser, die dieses Jahr fehlen oder nicht lesbar sind (MGB, MOB, BOB
+    # nur bis 2025; CJ 2026 ohne Textebene). Liegen im ZIP unter vorjahr/, grafapla_parse nimmt sie nur als Ersatz.
+    log["vorjahr"] = {}
+    z.writestr("vorjahr/jahr.txt", str(y - 1))
+    for name in VORJAHR:
+        if name in log["dateien"] and not name.startswith("GCJ"):
+            continue
+        url, data = first_ok(name, y - 1)
+        if data and data[:4] == b"%PDF":
+            z.writestr("vorjahr/" + name, data)
+            log["vorjahr"][name] = {"url": url, "kb": len(data) // 1024}
+print(f"{len(log['dateien'])} PDFs, Vorjahr {len(log['vorjahr'])}", file=sys.stderr)
 (out / f"grafapla_{y}.json").write_text(json.dumps(log, ensure_ascii=False, indent=1))
 sys.exit(0 if log["dateien"] else 1)

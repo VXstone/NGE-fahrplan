@@ -16,6 +16,7 @@ on:
       - "tools/grafapla.py"
       - "tools/grafapla_parse.py"
       - "tools/grafapla_rhb.py"
+      - "tools/grafapla_quer.py"
 
 permissions:
   contents: write

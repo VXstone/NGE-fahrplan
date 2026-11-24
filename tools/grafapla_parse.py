@@ -387,10 +387,24 @@ if __name__ == "__main__":
                 abbr.setdefault(r["abbr"], r["name"])
     sys.path.insert(0, str(Path(__file__).parent))
     import grafapla_rhb
+    import grafapla_quer
     st_csv = sys.argv[sys.argv.index("--stations") + 1] if "--stations" in sys.argv else None
     nm = grafapla_rhb.name_matcher(st_csv) if st_csv and Path(st_csv).exists() else None
+    abbrs = {r["abbr"] for r in csv.DictReader(open(st_csv, encoding="utf-8")) if r["abbr"]} if nm else None
+    ordner = Path(sys.argv[1])
     res = []
-    for fn in sorted(Path(sys.argv[1]).glob("G*.pdf")):
+    quer = {}      # Bahnen mit waagrechter Zeitachse (Schritt C): MGB, MOB, BOB, CJ
+
+    def lies_quer(fn, stand=None):
+        try:
+            r = grafapla_quer.parse_pdf(fn, nm, abbrs)
+        except Exception as e:  # noqa
+            r = dict(feld=fn.stem[1:], kat={}, fehler={"Layout": f"{type(e).__name__}: {e}"})
+        if stand:
+            r["stand"] = stand
+        return r
+
+    for fn in sorted(ordner.glob("G*.pdf")):
         # Bahnen mit eigenem Layout
         if fn.name.startswith("GRhB") and nm:
             try:
@@ -400,10 +414,14 @@ if __name__ == "__main__":
             res.append(r)
             print(r["feld"], {k: len(v["zuege"]) for k, v in r["kat"].items()}, "(RhB)", file=sys.stderr)
             continue
-        # eigenes Layout, noch ohne Leser (Schritt E): MGB Sommer/Winter, DB Basel Bad
-        if fn.name.startswith(("GMGB", "GDB")):
-            res.append(dict(feld=fn.stem[1:], kat={}, fehler={"Layout": "eigenes Layout, kein Leser (siehe UEBERGABE C)"}))
-            print(fn.stem[1:], "übersprungen (eigenes Layout)", file=sys.stderr)
+        if fn.name.startswith(("GMGB", "GMOB", "GBOB", "GCJ")) and nm:
+            quer[fn.stem] = lies_quer(fn)
+            continue
+        # DB Basel Bad (GDB1–3, DB-InfraGO-Layout): Zugnummern sind Kurven, keine Schrift → bräuchte Texterkennung
+        if fn.name.startswith("GDB"):
+            res.append(dict(feld=fn.stem[1:], kat={}, fehler={"Layout": "DB-InfraGO-Layout, Zugnummern als Kurven "
+                                                                        "(keine Schrift), kein Leser (UEBERGABE C)"}))
+            print(fn.stem[1:], "übersprungen (Nummern nicht als Schrift)", file=sys.stderr)
             continue
         r = dict(feld=fn.stem[1:], kat={})
         for kat, farbe in FARBEN.items():
@@ -421,6 +439,23 @@ if __name__ == "__main__":
             r["kat"]["G"]["ohne_nummer"] += v["ohne_nummer"]
         res.append(r)
         print(r["feld"], {k: len(v["zuege"]) for k, v in r["kat"].items()}, r.get("titel", "")[:50], file=sys.stderr)
+    # Vorjahr (Ordner vorjahr/, von grafapla.py mitgeholt): für Bahnen, deren Blatt dieses Jahr fehlt oder nicht
+    # lesbar ist (MGB, MOB, BOB nur bis 2025; CJ 2026 ohne Textebene) → Feld mit «stand».
+    vj = ordner / "vorjahr"
+    if vj.is_dir() and nm:
+        for fn in sorted(vj.glob("G*.pdf")):
+            if fn.name.startswith(("GMGB", "GMOB", "GBOB", "GCJ")):
+                da = quer.get(fn.stem)
+                if da is None or (da.get("fehler") and not any(v["zuege"] for v in da["kat"].values())):
+                    quer[fn.stem] = lies_quer(fn, f"Fahrplan {(vj / 'jahr.txt').read_text().strip()}"
+                                              if (vj / "jahr.txt").exists() else "Vorjahr")
+    if "GMGBW" in quer or "GMGBS" in quer:
+        m = grafapla_quer.mgb_vereinen(quer.pop("GMGBW", None), quer.pop("GMGBS", None))
+        quer["GMGB"] = m
+    for k, r in sorted(quer.items()):
+        res.append(r)
+        print(r["feld"], {k_: len(v["zuege"]) for k_, v in r["kat"].items()}, r.get("stand", ""), r.get("fehler", ""),
+              file=sys.stderr)
     import gzip
     op = gzip.open if sys.argv[2].endswith(".gz") else open
     with op(sys.argv[2], "wt", encoding="utf-8") as f:
