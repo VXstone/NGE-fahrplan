@@ -201,3 +201,9 @@ Kundeninformation (SKI) auf [oev-info.ch](https://www.oev-info.ch/de/fahrplan-ak
 von SBB Infrastruktur (Fahrplan & Netzdesign) bzw. den jeweiligen Bahnen. **Lizenz bzw. Nutzungsbedingungen ungeklärt**:
 die Original-PDFs werden darum nicht im Release weitergegeben (nur kurz als Lauf-Artefakt), die ausgelesenen Daten
 sind ohne Gewähr. Zeichenerklärung (Verkehrsperioden): `tools/grafapla_vp.py`.
+
+Eigene Leser für andere Layouts: `tools/grafapla_rhb.py` (RhB), `tools/grafapla_quer.py` (Zeit waagrecht, ein Blatt:
+MGB Sommer/Winter → Feld `MGB`, MOB, BOB, CJ). Blätter, die im Jahr fehlen oder nicht lesbar sind (MGB/MOB/BOB nur bis
+2025, CJ 2026 ohne Textebene), holt `grafapla.py` aus dem Vorjahr (ZIP-Ordner `vorjahr/`); das Feld trägt dann
+`"stand": "Fahrplan 2025"` und zählt in `tools/qa.py` nicht zur Gesamtquote. DB Basel Bad (`GDB1–3`) wird übersprungen:
+die Zugnummern sind dort Kurven, keine Schrift.

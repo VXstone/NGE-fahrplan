@@ -42,6 +42,7 @@ Gilt für beide Repos: **VXstone/NGE-fahrplan** (dieses) und **VXstone/fahrplan-
 | `tools/grafapla_verzeichnis.py`, `grafapla-verzeichnis.yml` | Erkundung (Dispatch): Listenseiten, Filter (Jahr, EVU), einzelne PDFs (Seiten, Farben, Text) → `erkundung_verzeichnis.json` im Release grafapla-2026 |
 | `tools/grafapla_parse.py` | SBB-Layout lesen (Zeit senkrecht, Stationen waagrecht); auch SZU, BLS-/SOB-Felder |
 | `tools/grafapla_rhb.py` | RhB-Layout (Zeit waagrecht) |
+| `tools/grafapla_quer.py` | Zeit waagrecht, ein Blatt: MGB (S+W → Feld MGB), MOB, BOB, CJ; Vorjahr aus ZIP `vorjahr/` → Feld `stand` |
 | `tools/grafapla_vp.py` | Verkehrsperioden entschlüsseln |
 | `grafapla.yml` | Matrix 2026/2025 → Release `grafapla-<Jahr>`: `grafapla_<J>.json` (Dateiliste), `grafapla_<J>_zuege.json.gz` |
 
@@ -117,13 +118,13 @@ Begründung: B zuerst (klein, macht die Tabelle reproduzierbar, Grundlage für a
 am meisten (RB Lausanne-Triage, Genève, Gotthard 531); E ist nur Nachsehen; F Schönheitsfehler; C grösserer Aufwand
 mit wenig Güterverkehr; G nimmt Gleiszahlen aus topo-daten und braucht die saubere Liste aus B/D/F.
 
-**Nächster Einstieg (kopieren):** «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt C»
+**Nächster Einstieg (kopieren):** «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt G»
 Nach dem Merge eines Leser-Schritts (C, D) ausführen: grafapla `year=2026`, dann `year=2025` → daten → Claude schreibt
 die Güterzug-Tabelle neu (Links oben).
 
 - [x] **A** PR #6 mergen → `grafapla.yml` für 2026 und 2025 starten → `daten.yml` starten → Güterzug-Tabelle neu.
 - [x] **B** `gz_list.py` (Güterzug-Liste mit Mustern Mo–So, Verkettung, Achse) ins Repo fahrplan-verstehen `tools/`.
-- [ ] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»);
+- [x] **C** Leser CJ (2026 publiziert, eigenes Layout, liefert heute nichts), BOB, MOB (nur 2025 → «Stand Fahrplan 2025»);
       seit E auch **MGB** `GMGBS`/`GMGBW` (Sommer/Winter, nur bis 2025, 1 Blatt, Zermatt–Brig + Brig–Göschenen/Disentis,
       Farben 0000ff/000000/ff0000/008000/ff8000/808000, VP «Güter» im Winterblatt) und **DB Basel Bad** `GDB1–3`
       (bis 2025, 45 S., DB-InfraGO-Layout, Farben f5ae0c/0080ff, Basel Bad Rbf → Güterverkehr). Beide überspringt der Leser.
@@ -167,3 +168,10 @@ die Güterzug-Tabelle neu (Links oben).
   innen (40002: 531 statt 540 bei RYUE–FL). Läufe mit Doppelpunkt R/G/L 800/129/41 → 141/54/25, Rest nur innerhalb eines
   Felds. Publikation vs. HRDF An-oder-Ab 98,99 → 99,05 %, An-und-Ab 77,5 → 78,4 %. Güterzug-Liste 2179 Zeilen, nur «via»
   bei 13 Zügen sauberer. Leser unverändert → grafapla nicht neu; nach Merge `daten.yml` starten, Tabelle (nur «via») in C mit neu.
+- 24.11. C: `grafapla_quer.py` (Zeit waagrecht, Bänder, Stunden aus Zahlen oder Stundenlinien, gedrehte Seite MOB).
+  MGB/MOB/BOB nur 2025, CJ 2026 ohne Textebene → `grafapla.py` holt das Vorjahr ins ZIP `vorjahr/`, Feld `stand`
+  «Fahrplan 2025», `qa.py` zählt es nicht zur Gesamtquote. Gegen HRDF 2026 (nur Anhalt): CJ 98 %, MGB 82 % (Oberalp
+  ±3′, Fahrplan geändert?), BOB 76 %, MOB 54 % (≈ +1,3′ systematisch, ungeklärt) – build_pub verwirft unpassende R.
+  Güterzüge neu: MGB 9 (Visp–Zermatt 42xx, Oberalp 6831); MOB/BOB/CJ ohne Güterzüge. MGB «A 24xx» = Autoverlad
+  Furka → L mit `art`. **DB Basel Bad GDB1–3 und CJ 2026: Zugnummern als Kurven, keine Schrift** → nur mit
+  Texterkennung (eigener Schritt, falls gewünscht). Ast `grafapla-c-pdf` (einmalig PDFs 2025 geholt) kann weg.
