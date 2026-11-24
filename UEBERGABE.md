@@ -1,4 +1,4 @@
-# Übergabe NGE-fahrplan + fahrplan-verstehen – Stand 23.11.2026
+# Übergabe NGE-fahrplan + fahrplan-verstehen – Stand 24.11.2026
 
 Kurz halten. Gelesen wird Abschnitt 0, 1 und der eigene Schritt in Abschnitt 4. Nachträge am Ende eines Schritts
 **höchstens 10 Zeilen** in Abschnitt 5; wird er länger als ~60 Zeilen, die ältesten in `UEBERGABE_ARCHIV.md` verschieben.
@@ -118,7 +118,7 @@ Begründung: B zuerst (klein, macht die Tabelle reproduzierbar, Grundlage für a
 am meisten (RB Lausanne-Triage, Genève, Gotthard 531); E ist nur Nachsehen; F Schönheitsfehler; C grösserer Aufwand
 mit wenig Güterverkehr; G nimmt Gleiszahlen aus topo-daten und braucht die saubere Liste aus B/D/F.
 
-**Nächster Einstieg (kopieren):** «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt G»
+**Nächster Einstieg (kopieren):** «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt H (gleiche Nummer/andere VP)»
 Nach dem Merge eines Leser-Schritts (C, D) ausführen: grafapla `year=2026`, dann `year=2025` → daten → Claude schreibt
 die Güterzug-Tabelle neu (Links oben).
 
@@ -134,11 +134,14 @@ die Güterzug-Tabelle neu (Links oben).
 - [x] **E** MGB, zb: im Jahresverzeichnis `grafapla/<J>/GZVJ.pdf` bzw. `.xlsx` nachsehen (über Actions holen).
 - [x] **F** Doppelte Stationen bei überlappenden Feldern entfernen (fahrplan-verstehen `build_pub.merge`, PR #10).
       Danach: «Weiter mit UEBERGABE.md in VXstone/NGE-fahrplan – Schritt C»
-- [ ] **G** Gleiszahlen **aus topo-daten** in fahrplan-verstehen übernehmen (Richtung topo-daten → hier) statt aus
+- [x] **G** Gleiszahlen **aus topo-daten** in fahrplan-verstehen übernehmen (Richtung topo-daten → hier) statt aus
       Begegnungen schätzen; Abschnitte ohne topo-daten bleiben «geschätzt». Topologie nur lesen, nichts dort bauen.
       Nebenprodukt: Liste der von Güterzügen befahrenen Abschnitte als Prüfliste für topo-daten (fehlende Verbindung,
       reine Güterabschnitte nach REGELN 1.21) – dort Eingabe für Hinweise, kein eigener Schritt.
       Danach: offene Punkte aus Abschnitt 3 (gleiche Nummer/andere VP, Rückgriff 2025 bei Totalsperren).
+- [ ] **H** Gleiche Nummer, andere VP und Lage (Abschnitt 3, ~0,4 %): in `build_pub` getrennt halten statt vermengen.
+- [ ] **I** Rückgriff 2025 für Abschnitte, die 2026 wegen Totalsperre leer sind (Payerne–Murten 252, Iselle–Domodossola
+      222/223), wie Feld `stand` in C.
 
 ## 5. Nachträge
 - 21.11. Violett als G (PR #5), RhB- und 636xx-Güterzüge in der Tabelle, Vereina als Autoverlad, «mod» aufgenommen;
@@ -175,3 +178,8 @@ die Güterzug-Tabelle neu (Links oben).
   Güterzüge neu: MGB 9 (Visp–Zermatt 42xx, Oberalp 6831); MOB/BOB/CJ ohne Güterzüge. MGB «A 24xx» = Autoverlad
   Furka → L mit `art`. **DB Basel Bad GDB1–3 und CJ 2026: Zugnummern als Kurven, keine Schrift** → nur mit
   Texterkennung (eigener Schritt, falls gewünscht). Ast `grafapla-c-pdf` (einmalig PDFs 2025 geholt) kann weg.
+- 24.11. G gemerged (fahrplan-verstehen PR #12: `build_gleise.py`, `gleise.json`, `gueterabschnitte.csv`, Quelle
+  topo-daten, ODbL). PR #11 (`gz_list` Achse «MGB») gemerged, `daten.yml` gelaufen. Güterzug-Tabelle: 9 MGB-Zeilen
+  von Hand an der Sortierstelle eingefügt (Zeilen 64–71, 151), statt neu importiert → 2188 Fahrten (Mo 1196, Di–Fr
+  1463–1492, Sa 680, So 412) = Release. Muster-Liste nachgezogen (Mo–Fr 675, täglich 170, Mo–Sa 69), Legende «Nicht
+  enthalten» angepasst. Achse «MGB» hat keine Zeile in der Alpenachsen-Tabelle der Übersicht.
