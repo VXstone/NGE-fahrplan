@@ -142,6 +142,14 @@ die Güterzug-Tabelle neu (Links oben).
 - [ ] **H** Gleiche Nummer, andere VP und Lage (Abschnitt 3, ~0,4 %): in `build_pub` getrennt halten statt vermengen.
 - [ ] **I** Rückgriff 2025 für Abschnitte, die 2026 wegen Totalsperre leer sind (Payerne–Murten 252, Iselle–Domodossola
       222/223), wie Feld `stand` in C.
+- [ ] **J** fahrplan-verstehen, Quelle «Publikation»: heute gilt der Wochentag des Datums (`app.js` ~Z. 140, Feiertag =
+      So), VP mit «*» erscheinen an jedem passenden Tag (~½ der G-Züge). Neu: Wochentag-Wähler (Mo…So, «Werktag
+      typisch») statt Datum, Schalter «zeitweise (*) ausblenden / abgesetzt zeigen». Gilt auch für Güterzug-Tabelle-Links.
+- [ ] **K** Güterzüge als NGE-JSON (hier, `nge_fahrplan/`): Quelle `publikation.json.gz` statt HRDF, je eine Datei
+      Mo / Di–Fr / Sa / So, Linien nach Achse gefärbt, zeitweise getrennt. Abgleich mit der Handskizze Güter West.
+- [ ] **L** fahrplan-verstehen, Ansicht «Güterverkehr»: Netzplan auf der Karte, Abschnittsbreite = G-Züge/Tag aus
+      `gueterabschnitte.csv`, Filter Wochentag/Achse/zeitweise, Klick → Züge des Abschnitts → Bildfahrplan.
+      J–L erst nach H/I (H ändert die Zuglisten). Reihenfolge J → L → K (J liefert den Tagesfilter für L).
 
 ## 5. Nachträge
 - 21.11. Violett als G (PR #5), RhB- und 636xx-Güterzüge in der Tabelle, Vereina als Autoverlad, «mod» aufgenommen;
